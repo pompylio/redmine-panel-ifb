@@ -10,6 +10,102 @@ suppressMessages(require(stringr))
 suppressMessages(require(DBI))
 suppressMessages(require(RMySQL))
 suppressMessages(require(pool))
+suppressMessages(require(reshape2))
+# SHINY DATABASE --------------------------------------------------------------------------------------------------
+source("security/key_redmine.R",encoding = "UTF-8")
+bsc   <- readRDS("data/bsc.rds")
+bsc_meta <- bsc[, c("Cod_Indicador", "Meta_2014", "Meta_2015", "Meta_2016", "Meta_2017", "Meta_2018")]
+bsc_meta <- melt(data = bsc_meta, 
+                 id.vars = "Cod_Indicador", 
+                 measure.vars = c("Meta_2014", "Meta_2015", "Meta_2016", "Meta_2017", "Meta_2018"), 
+                 variable.name = "ano", 
+                 value.name = "meta", na.rm = FALSE)
+bsc_meta$ano <- substr(bsc_meta$ano, 6, 9)
+bsc_meta$meta <- as.numeric(gsub("[^\\d]+", "", bsc_meta$meta, perl=TRUE))
+bsc_meta[is.na(bsc_meta$meta), ]$meta <- 0
+colnames(bsc_meta) <- c("indicador", "ano","meta")
+siafi <- readRDS("data/siafi.rds")
+version <- readRDS("data/version.rds")
+load("data/ind_pdi.rda")
+project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670","671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718","719","720"),orcamento = c("683","695"))
+connect <- dbPool(drv = RMySQL::MySQL(), dbname = kpass$dbname, host = kpass$host,username = kpass$username,password = kpass$password,idleTimeout = 3600000)
+conn <- poolCheckout(connect)
+date_dbi <- dbWithTransaction(conn, {dbGetQuery(conn, "SELECT updated_on FROM issues ORDER BY updated_on DESC LIMIT 1")})
+update_dbi <- as.POSIXct(strptime(date_dbi$updated_on,"%Y-%m-%d %H:%M:%S"))
+tb <- c("custom_fields","custom_values","issues","issue_statuses","projects","trackers","users")
+for(i in 1:NROW(tb)){assign(tb[i],dbReadTable(conn = conn,name = tb[i]))}
+custom_fields[,sapply(custom_fields, class) == "character"] <- apply(X = custom_fields[,sapply(custom_fields, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
+custom_values[,sapply(custom_values, class) == "character"] <- apply(X = custom_values[,sapply(custom_values, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
+issue_statuses$name <- iconv(x = issue_statuses$name,from = "latin1",to = "UTF-8")
+issues[,sapply(issues, class) == "character"] <- apply(X = issues[,sapply(issues, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
+projects[,sapply(projects, class) == "character"] <- apply(X = projects[,sapply(projects, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
+trackers$name <- iconv(x = trackers$name,from = "latin1",to = "UTF-8")
+users[,sapply(users, class) == "character"] <- apply(X = users[,sapply(users, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
+custom_values <- merge(x = custom_values,y = custom_fields[,c("id","name")],by.x = "custom_field_id",by.y = "id",all.x = TRUE,sort = FALSE)
+custom_values <- custom_values[custom_values$custom_field_id %in% c(120,121,122,136,145,146,147),c("custom_field_id","customized_id","name","value")]
+custom_values[custom_values$custom_field_id %in% c(120,121,122),]$name <- "Setor"
+custom_values[custom_values$custom_field_id %in% c(136),]$name <- "Natureza_de_Despesa"
+custom_values[custom_values$custom_field_id %in% c(145),]$name <- "Limite_Orcamentario"
+custom_values[custom_values$custom_field_id %in% c(146),]$name <- "Orcamento_Previsto"
+custom_values[custom_values$custom_field_id %in% c(147),]$name <- "Validacao"
+custom_values <- custom_values[,-c(1)]
+custom_values1 <- custom_values[custom_values$name == "Setor",]
+custom_values1 <- spread(data = custom_values1,key = name,value = value,fill = "")
+custom_values2 <- custom_values[custom_values$name == "Natureza_de_Despesa",]
+custom_values2 <- spread(data = custom_values2,key = name,value = value,fill = "")
+custom_values3 <- custom_values[custom_values$name == "Limite_Orcamentario",]
+custom_values3 <- spread(data = custom_values3,key = name,value = value,fill = "")
+custom_values3$Limite_Orcamentario <- str_replace_all(string = custom_values3$Limite_Orcamentario,c("[.]"="","[,]"="."))
+custom_values3$Limite_Orcamentario <- as.numeric(custom_values3$Limite_Orcamentario)
+custom_values4 <- custom_values[custom_values$name == "Orcamento_Previsto",]
+custom_values4 <- spread(data = custom_values4,key = name,value = value,fill = "")
+custom_values4$Orcamento_Previsto <- str_replace_all(string = custom_values4$Orcamento_Previsto,c("[.]"="","[,]"="."))
+custom_values4$Orcamento_Previsto <- as.numeric(custom_values4$Orcamento_Previsto)
+custom_values5 <- custom_values[custom_values$name == "Validacao",]
+custom_values5 <- spread(data = custom_values5,key = name,value = value,fill = "")
+custom_values <- merge(x = custom_values1,y = custom_values2,by.x = "customized_id",by.y = "customized_id",all = TRUE)
+custom_values <- merge(x = custom_values,y = custom_values3,by.x = "customized_id",by.y = "customized_id",all = TRUE)
+custom_values <- merge(x = custom_values,y = custom_values4,by.x = "customized_id",by.y = "customized_id",all = TRUE)
+custom_values <- merge(x = custom_values,y = custom_values5,by.x = "customized_id",by.y = "customized_id",all = TRUE)
+issues <- issues[issues$project_id %in% c(project_app$planejamento,project_app$orcamento),]
+issues <- merge(x = issues,y = trackers[,c("id","name")],by.x = "tracker_id",by.y = "id",all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = projects[,c("id","name","status")],by.x = "project_id",by.y = "id",suffixes = c("","_project"),all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = projects[,c("id","name")],by.x = "tracker_id",by.y = "id",suffix = c("","_project_parent"),all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = issue_statuses[,c("id","name")],by.x = "status_id",by.y = "id",suffix = c("","_status"),all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = users[,c("id","firstname","lastname")],by.x = "assigned_to_id",by.y = "id",all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = users[,c("id","firstname","lastname")],by.x = "author_id",by.y = "id",suffix = c("","_author"),all.x = TRUE,sort = FALSE)
+issues <- merge(x = issues,y = custom_values,by.x = "id",by.y = "customized_id",all.x = TRUE,sort = FALSE)
+issues$name <- str_replace_all(issues$name,c("[ç]"="c","[ã]"="a","[õ]"="o","[á]"="a","[é]"="e","[í]"="i","[ó]"="o","[ú]"="u"))
+issues$Situacao_Corrigida <- ifelse(issues$status_id == 5,"Fechada",ifelse(issues$done_ratio == 100,"Finalizada",ifelse(issues$done_ratio == 0,"Nao_Iniciada","Iniciada")))
+issues$Situacao_Prazo <- ifelse(is.na(issues$due_date),"Sem_Data",
+                         ifelse(issues$Situacao_Corrigida == "Finalizada","Concluida",
+                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date(),"No_prazo",
+                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) >  as.numeric(substr(issues$start_date,1,4)),"Em_atraso",
+                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date < Sys.Date(),"Em_atraso",
+                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date() & issues$start_date >= Sys.Date(),"No_prazo",
+                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) >  as.numeric(substr(issues$start_date,1,4)),"Em_atraso",
+                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date < Sys.Date(),"Em_atraso",
+                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date() & issues$start_date <= Sys.Date(),"Em_atraso","Sem_Definicao")))))))))
+issues$Ano <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("20"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "20",text = issues$name_project)),unlist(gregexpr(pattern = "20",text = issues$name_project))+3)),"")
+issues$Unidade <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("[(]"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "[(]",text = issues$name_project))+1,unlist(gregexpr(pattern = "[)]",text = issues$name_project))-1)),"")
+issues$Setor_Sigla <- ifelse(is.na(issues$Setor)|issues$Setor == "","Nao_Informado",as.character(substr(x = issues$Setor,start = as.numeric(gregexpr(pattern = "[(]",issues$Setor))+1,stop = as.numeric(gregexpr(pattern = "[)]",issues$Setor))-1)))
+issues$due_date <- as.Date(issues$due_date)
+issues$created_on <- as.POSIXct(strptime(issues$created_on,"%Y-%m-%d %H:%M:%S"))
+issues$updated_on <- as.POSIXct(strptime(issues$updated_on,"%Y-%m-%d %H:%M:%S"))
+issues$start_date <- as.Date(issues$start_date)
+issues$assign <- ifelse(is.na(issues$firstname) & is.na(issues$lastname),"Sem Atribuicao",paste(issues$firstname,issues$lastname))
+issues$author <- paste(issues$firstname_author,issues$lastname_author)
+issues$parent_id0 <- issues$parent_id
+issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id0",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","1"))
+issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id1",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","2"))
+issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id2",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","3"))
+issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id3",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","4"))
+issues <- issues[,c("id","subject","name","Ano","Unidade","project_id","name_project","name_status","Situacao_Corrigida","Situacao_Prazo","assign","updated_on","start_date","due_date","done_ratio","parent_id","parent_id1","subject1","name1","parent_id2","subject2","name2","parent_id3","subject3","name3","parent_id4","subject4","name4","Setor","Setor_Sigla","Natureza_de_Despesa","Limite_Orcamentario","Orcamento_Previsto","Validacao")]
+names(issues) <- c("Id","Titulo","Tipo","Ano","Unidade","Id_Projeto","Projeto","Situacao","Situacao_Corrigida","Situacao_Prazo","Atribuido_para","Atualizado_em","Inicio","Data_prevista","Perc_Terminado","Cod_Tarefa_Pai","Cod_Tarefa_Pai1","Titulo1","Tipo1","Cod_Tarefa_Pai2","Titulo2","Tipo2","Cod_Tarefa_Pai3","Titulo3","Tipo3","Cod_Tarefa_Pai4","Titulo4","Tipo4","Setor","Setor_Sigla","Natureza_Despesa","Limite_Orcamento","Orcamento_Previsto","Validacao")
+sgi <- issues
+poolReturn(conn)
+onStop(function() {poolClose(connect)})
+vals <- reactiveValues(count=0)
 # FUNCTIONS -------------------------------------------------------------------------------------------------------
 bdg_lim_aca <- function(DBS,ANO,...){
   sgi$Unidade <- as.character(as.factor(sgi$Unidade))
@@ -122,91 +218,66 @@ barprogress <- function(title,type,font_color,height,value,position_value){
                                             "height: ",if(missing(height)){"18px"}else{height}),
                              HTML(paste0(if(missing(value)){"0"}else{value},"%")))))
 }
+plot_rChart_ifb <- function(id, fonte, origem, lim_eixo_y){
+  if (missing(lim_eixo_y)) lim <- FALSE
+  else                     lim <- TRUE
+  db <- fonte %>% filter(sigla_unidade == "IFB") %>% group_by(indicador, ano, meta, resultado) %>% summarise() 
+  if (nrow(db) < 5){
+    db <- left_join(x = bsc_meta[bsc_meta$indicador == unique(db$indicador), ], y = db, by = c("indicador", "ano"), suffix = c("", "_resultado"))
+    if (any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado <- 0
+  }
+  plot <- renderChart2({
+    h1 <- Highcharts$new()
+    h1$chart(type = "areaspline")
+    h1$credits(enabled = TRUE, text = paste0("Fonte: ", origem))
+    h1$series(name = "Meta", data = db$meta)
+    h1$series(name = "Resultado", data = db$resultado)
+    h1$xAxis(categories = db$ano)
+    if (lim) h1$yAxis(title="", stackLabels = list(enabled = TRUE), min = lim_eixo_y[["min"]], max = lim_eixo_y[["max"]])
+    else     h1$yAxis(title="", stackLabels = list(enabled = TRUE))
+    h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
+    h1$plotOptions(column = list(dataLabels = list(enabled = F), allowPointSelect = T, borderRadius = 4))
+    h1$set(width = get0(paste0("session$clientData$",id)))
+    return(h1)
+  })
+  return(plot)
+}
+plot_rChart_campi <- function(id, fonte, origem){
+  db <- fonte %>% filter(!sigla_unidade == "IFB")
+  dt <- tibble(
+    indicador = unique(db$indicador),
+    ano = rep(c("2014", "2015", "2016", "2017", "2018"), each = 10),
+    meta = rep(bsc_meta[bsc_meta$indicador == unique(db$indicador), ]$meta, each = 10),
+    sigla_unidade = rep(c("CBRA", "CCEI", "CEST", "CGAM", "CPLA", "CRFI", "CSAM", "CSSB", "CTAG", "CTGC"), 5))
+  db <- left_join(x = dt, y = db[, c("indicador", "ano", "sigla_unidade", "resultado")], by = c("indicador", "ano", "sigla_unidade"))
+  if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado <- 0
+  db <- db[, c("indicador", "ano", "sigla_unidade", "meta", "resultado")]
+  meta <- bsc_meta[bsc_meta$indicador == unique(db$indicador), ]$meta
+  plot <- renderChart2({
+    h1 <- Highcharts$new()
+    h1$chart(type = "spline")
+    h1$credits(enabled = TRUE, text = paste0("Fonte: ", origem), href = "http://dashboard.drpo.ifb.local/")
+    h1$xAxis(categories = unique(db$ano))
+    h1$yAxis(title="", stackLabels = list(enabled = TRUE))
+    h1$series(name = "META", data = meta, type = "areaspline", borderColor = "#f0f2f4", color = "#f0f2f4", pointWidth = 20)
+    h1$series(name = "CBRA", data = db[db$sigla_unidade == "CBRA", ]$resultado)#, color = "#ffffff")
+    h1$series(name = "CCEI", data = db[db$sigla_unidade == "CCEI", ]$resultado)#, color = "#181818")
+    h1$series(name = "CEST", data = db[db$sigla_unidade == "CEST", ]$resultado)#, color = "#303030")
+    h1$series(name = "CGAM", data = db[db$sigla_unidade == "CGAM", ]$resultado)#, color = "#484848")
+    h1$series(name = "CPLA", data = db[db$sigla_unidade == "CPLA", ]$resultado)#, color = "#606060")
+    h1$series(name = "CRFI", data = db[db$sigla_unidade == "CRFI", ]$resultado)#, color = "#707070")
+    h1$series(name = "CSAM", data = db[db$sigla_unidade == "CSAM", ]$resultado)#, color = "#888888")
+    h1$series(name = "CSSB", data = db[db$sigla_unidade == "CSSB", ]$resultado)#, color = "#A0A0A0")
+    h1$series(name = "CTAG", data = db[db$sigla_unidade == "CTAG", ]$resultado)#, color = "#B0B0B0")
+    h1$series(name = "CTGC", data = db[db$sigla_unidade == "CTGC", ]$resultado)#, color = "#C0C0C0")
+    h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
+    h1$plotOptions(column = list(dataLabels = list(enabled = F), allowPointSelect = T, borderRadius = 4))
+    h1$set(width = get0(paste0("session$clientData$",id)))
+    return(h1)
+  })
+  return(plot)
+}
 colorchart <- list(SGISitTarefa = list(Finalizada = "#0d1a26",Iniciada = "#336699",NaoIniciada = "#8cb3d9",Fechada = "#d4d9de"),SGISitPrazo  = list(Concluida = "#06130d",NoPrazo = "#206040",EmAtraso = "#40bf80",SemData = "#b3e6cc"),SGISitValor = list(Geral = "#336699",Borda = "#4080bf"),SGIExeOrc  = list(Acao = "#0d1a26",Categoria = "#336699",Despesa = "#8cb3d9"))
-# SHINY DATABASE --------------------------------------------------------------------------------------------------
-source("security/key_redmine.R",encoding = "UTF-8")
-bsc   <- readRDS("data/bsc.rds")
-siafi <- readRDS("data/siafi.rds")
-version <- readRDS("data/version.rds")
-project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670","671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718","719","720"),orcamento = c("683","695"))
-connect <- dbPool(drv = RMySQL::MySQL(),dbname = e8X9w7gfvBPD9W0,host = pXOIQhEueMXbwiX,username = ECpICe39hF9cheq,password = AFcshCsEQF7x82h,idleTimeout = 3600000)
-conn <- poolCheckout(connect)
-date_dbi <- dbWithTransaction(conn, {dbGetQuery(conn, "SELECT updated_on FROM issues ORDER BY updated_on DESC LIMIT 1")})
-update_dbi <- as.POSIXct(strptime(date_dbi$updated_on,"%Y-%m-%d %H:%M:%S"))
-tb <- c("custom_fields","custom_values","issues","issue_statuses","projects","trackers","users")
-for(i in 1:NROW(tb)){assign(tb[i],dbReadTable(conn = conn,name = tb[i]))}
-custom_fields[,sapply(custom_fields, class) == "character"] <- apply(X = custom_fields[,sapply(custom_fields, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
-custom_values[,sapply(custom_values, class) == "character"] <- apply(X = custom_values[,sapply(custom_values, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
-issue_statuses$name <- iconv(x = issue_statuses$name,from = "latin1",to = "UTF-8")
-issues[,sapply(issues, class) == "character"] <- apply(X = issues[,sapply(issues, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
-projects[,sapply(projects, class) == "character"] <- apply(X = projects[,sapply(projects, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
-trackers$name <- iconv(x = trackers$name,from = "latin1",to = "UTF-8")
-users[,sapply(users, class) == "character"] <- apply(X = users[,sapply(users, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
-custom_values <- merge(x = custom_values,y = custom_fields[,c("id","name")],by.x = "custom_field_id",by.y = "id",all.x = TRUE,sort = FALSE)
-custom_values <- custom_values[custom_values$custom_field_id %in% c(120,121,122,136,145,146,147),c("custom_field_id","customized_id","name","value")]
-custom_values[custom_values$custom_field_id %in% c(120,121,122),]$name <- "Setor"
-custom_values[custom_values$custom_field_id %in% c(136),]$name <- "Natureza_de_Despesa"
-custom_values[custom_values$custom_field_id %in% c(145),]$name <- "Limite_Orcamentario"
-custom_values[custom_values$custom_field_id %in% c(146),]$name <- "Orcamento_Previsto"
-custom_values[custom_values$custom_field_id %in% c(147),]$name <- "Validacao"
-custom_values <- custom_values[,-c(1)]
-custom_values1 <- custom_values[custom_values$name == "Setor",]
-custom_values1 <- spread(data = custom_values1,key = name,value = value,fill = "")
-custom_values2 <- custom_values[custom_values$name == "Natureza_de_Despesa",]
-custom_values2 <- spread(data = custom_values2,key = name,value = value,fill = "")
-custom_values3 <- custom_values[custom_values$name == "Limite_Orcamentario",]
-custom_values3 <- spread(data = custom_values3,key = name,value = value,fill = "")
-custom_values3$Limite_Orcamentario <- str_replace_all(string = custom_values3$Limite_Orcamentario,c("[.]"="","[,]"="."))
-custom_values3$Limite_Orcamentario <- as.numeric(custom_values3$Limite_Orcamentario)
-custom_values4 <- custom_values[custom_values$name == "Orcamento_Previsto",]
-custom_values4 <- spread(data = custom_values4,key = name,value = value,fill = "")
-custom_values4$Orcamento_Previsto <- str_replace_all(string = custom_values4$Orcamento_Previsto,c("[.]"="","[,]"="."))
-custom_values4$Orcamento_Previsto <- as.numeric(custom_values4$Orcamento_Previsto)
-custom_values5 <- custom_values[custom_values$name == "Validacao",]
-custom_values5 <- spread(data = custom_values5,key = name,value = value,fill = "")
-custom_values <- merge(x = custom_values1,y = custom_values2,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values3,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values4,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values5,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-issues <- issues[issues$project_id %in% c(project_app$planejamento,project_app$orcamento),]
-issues <- merge(x = issues,y = trackers[,c("id","name")],by.x = "tracker_id",by.y = "id",all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = projects[,c("id","name","status")],by.x = "project_id",by.y = "id",suffixes = c("","_project"),all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = projects[,c("id","name")],by.x = "tracker_id",by.y = "id",suffix = c("","_project_parent"),all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = issue_statuses[,c("id","name")],by.x = "status_id",by.y = "id",suffix = c("","_status"),all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = users[,c("id","firstname","lastname")],by.x = "assigned_to_id",by.y = "id",all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = users[,c("id","firstname","lastname")],by.x = "author_id",by.y = "id",suffix = c("","_author"),all.x = TRUE,sort = FALSE)
-issues <- merge(x = issues,y = custom_values,by.x = "id",by.y = "customized_id",all.x = TRUE,sort = FALSE)
-issues$name <- str_replace_all(issues$name,c("[ç]"="c","[ã]"="a","[õ]"="o","[á]"="a","[é]"="e","[í]"="i","[ó]"="o","[ú]"="u"))
-issues$Situacao_Corrigida <- ifelse(issues$status_id == 5,"Fechada",ifelse(issues$done_ratio == 100,"Finalizada",ifelse(issues$done_ratio == 0,"Nao_Iniciada","Iniciada")))
-issues$Situacao_Prazo <- ifelse(is.na(issues$due_date),"Sem_Data",
-                         ifelse(issues$Situacao_Corrigida == "Finalizada","Concluida",
-                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date(),"No_prazo",
-                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) >  as.numeric(substr(issues$start_date,1,4)),"Em_atraso",
-                         ifelse(issues$Situacao_Corrigida == "Iniciada" &     as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date < Sys.Date(),"Em_atraso",
-                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date() & issues$start_date >= Sys.Date(),"No_prazo",
-                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) >  as.numeric(substr(issues$start_date,1,4)),"Em_atraso",
-                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date < Sys.Date(),"Em_atraso",
-                         ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date() & issues$start_date <= Sys.Date(),"Em_atraso","Sem_Definicao")))))))))
-issues$Ano <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("20"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "20",text = issues$name_project)),unlist(gregexpr(pattern = "20",text = issues$name_project))+3)),"")
-issues$Unidade <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("[(]"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "[(]",text = issues$name_project))+1,unlist(gregexpr(pattern = "[)]",text = issues$name_project))-1)),"")
-issues$Setor_Sigla <- ifelse(is.na(issues$Setor)|issues$Setor == "","Nao_Informado",as.character(substr(x = issues$Setor,start = as.numeric(gregexpr(pattern = "[(]",issues$Setor))+1,stop = as.numeric(gregexpr(pattern = "[)]",issues$Setor))-1)))
-issues$due_date <- as.Date(issues$due_date)
-issues$created_on <- as.POSIXct(strptime(issues$created_on,"%Y-%m-%d %H:%M:%S"))
-issues$updated_on <- as.POSIXct(strptime(issues$updated_on,"%Y-%m-%d %H:%M:%S"))
-issues$start_date <- as.Date(issues$start_date)
-issues$assign <- ifelse(is.na(issues$firstname) & is.na(issues$lastname),"Sem Atribuicao",paste(issues$firstname,issues$lastname))
-issues$author <- paste(issues$firstname_author,issues$lastname_author)
-issues$parent_id0 <- issues$parent_id
-issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id0",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","1"))
-issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id1",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","2"))
-issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id2",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","3"))
-issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id3",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","4"))
-issues <- issues[,c("id","subject","name","Ano","Unidade","project_id","name_project","name_status","Situacao_Corrigida","Situacao_Prazo","assign","updated_on","start_date","due_date","done_ratio","parent_id","parent_id1","subject1","name1","parent_id2","subject2","name2","parent_id3","subject3","name3","parent_id4","subject4","name4","Setor","Setor_Sigla","Natureza_de_Despesa","Limite_Orcamentario","Orcamento_Previsto","Validacao")]
-names(issues) <- c("Id","Titulo","Tipo","Ano","Unidade","Id_Projeto","Projeto","Situacao","Situacao_Corrigida","Situacao_Prazo","Atribuido_para","Atualizado_em","Inicio","Data_prevista","Perc_Terminado","Cod_Tarefa_Pai","Cod_Tarefa_Pai1","Titulo1","Tipo1","Cod_Tarefa_Pai2","Titulo2","Tipo2","Cod_Tarefa_Pai3","Titulo3","Tipo3","Cod_Tarefa_Pai4","Titulo4","Tipo4","Setor","Setor_Sigla","Natureza_Despesa","Limite_Orcamento","Orcamento_Previsto","Validacao")
-sgi <- issues
-poolReturn(conn)
-onStop(function() {poolClose(connect)})
-vals <- reactiveValues(count=0)
 # SHINY UI --------------------------------------------------------------------------------------------------------
 ui <-
   dashboardPage(
@@ -225,28 +296,59 @@ ui <-
           icon = icon("map-signs"),
           menuSubItem(
             text = strong("ESTRATÉGIA"),
-            tabName = "menu1sub0",
             icon = icon("caret-right"),
+            tabName = "menu1sub0",
             selected = TRUE),
           menuSubItem(
             text = strong("INDICADORES"),
-            tabName = "menu1sub1",
-            icon = icon("caret-right")),
+            icon = icon("caret-right"),
+            tabName = "menu1sub1"),
           menuItem(
             text = strong("PLANOS DE AÇÃO"),
-            tabName = "menu1sub2",
             icon = icon("caret-right"),
+            tabName = "menu1sub2",
             startExpanded = FALSE,
             menuSubItem(
-              text = strong("GERAL"),
-              tabName = "menu1sub2sub1",
-              icon = icon("angle-right")),
+              text = strong("Geral"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub2sub1"),
             menuSubItem(
-              text = strong("UNIDADE"),
-              tabName = "menu1sub2sub2",
-              icon = icon("angle-right"))
-          )
-        )#,
+              text = strong("Unidade"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub2sub2")
+          ),
+          menuItem(
+            text = strong("RESULTADO PDI"),
+            icon = icon("caret-right"),
+            tabName = 'menu1sub3',
+            startExpanded = TRUE,
+            menuItem(
+              text = strong("Resultados"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub3sub1",
+              badgeLabel = "N", 
+              badgeColor = "green"), 
+            menuItem(
+              text = strong("Sociedade"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub3sub2",
+              badgeLabel = "N", 
+              badgeColor = "green"),
+            menuItem(
+              text = strong("Processos Internos"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub3sub3",
+              badgeLabel = "N", 
+              badgeColor = "green"),
+            menuItem(
+              text = strong("Pessoas e Tecnologia"),
+              icon = icon("angle-right"),
+              tabName = "menu1sub3sub4",
+              badgeLabel = "N", 
+              badgeColor = "green")
+            )
+        )
+        #,
         # menuItem(
         # text = strong("ORÇAMENTO"),
         # tabName = 'menu2',
@@ -613,8 +715,122 @@ ui <-
                  collapsible = TRUE,
                  showOutput("orc.exe.pag","highcharts")))
              )
-           )
-      ),
+           ),
+        tabItem(
+          tabName = "menu1sub3sub1",
+          fluidRow(
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[1], solidHeader = TRUE, collapsible = TRUE, showOutput("i111", "highcharts")),
+              box(width = 6, title = bsc$Indicador[2], solidHeader = TRUE, collapsible = TRUE, showOutput("i112", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[3], solidHeader = TRUE, collapsible = TRUE, showOutput("i121", "highcharts")),
+              box(width = 6, title = bsc$Indicador[4], solidHeader = TRUE, collapsible = TRUE, showOutput("i122", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[5], solidHeader = TRUE, collapsible = TRUE, showOutput("i123", "highcharts")),
+              box(width = 6, title = bsc$Indicador[6], solidHeader = TRUE, collapsible = TRUE, showOutput("i124", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[7], solidHeader = TRUE, collapsible = TRUE, showOutput("i131", "highcharts")),
+              box(width = 6, title = bsc$Indicador[8], solidHeader = TRUE, collapsible = TRUE, showOutput("i132", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[9], solidHeader = TRUE, collapsible = TRUE, showOutput("i133", "highcharts"))))
+          ),
+        tabItem(
+          tabName = "menu1sub3sub2",
+          fluidRow(
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[10], solidHeader = TRUE, collapsible = TRUE, showOutput("i211", "highcharts")),
+              #box(width = 6, title = bsc$Indicador[11], solidHeader = TRUE, collapsible = TRUE, showOutput("i212", "highcharts")),
+              box(width = 6, title = bsc$Indicador[12], solidHeader = TRUE, collapsible = TRUE, showOutput("i213", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[13], solidHeader = TRUE, collapsible = TRUE, showOutput("i214", "highcharts"))))
+              #box(width = 6, title = bsc$Indicador[14], solidHeader = TRUE, collapsible = TRUE, showOutput("i215", "highcharts")),
+          ),
+        tabItem(
+          tabName = "menu1sub3sub3",
+          fluidRow(
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[15], solidHeader = TRUE, collapsible = TRUE, showOutput("i311", "highcharts")),
+              box(width = 6, title = bsc$Indicador[16], solidHeader = TRUE, collapsible = TRUE, showOutput("i312", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[17], solidHeader = TRUE, collapsible = TRUE, showOutput("i313", "highcharts")),
+              box(width = 6, title = bsc$Indicador[18], solidHeader = TRUE, collapsible = TRUE, showOutput("i314", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[19], solidHeader = TRUE, collapsible = TRUE, showOutput("i321", "highcharts")),
+              box(width = 6, title = bsc$Indicador[20], solidHeader = TRUE, collapsible = TRUE, showOutput("i331", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[21], solidHeader = TRUE, collapsible = TRUE, showOutput("i332", "highcharts")),
+              box(width = 6, title = bsc$Indicador[22], solidHeader = TRUE, collapsible = TRUE, showOutput("i333", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[23], solidHeader = TRUE, collapsible = TRUE, showOutput("i341", "highcharts")),
+              box(width = 6, title = bsc$Indicador[24], solidHeader = TRUE, collapsible = TRUE, showOutput("i342", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[25], solidHeader = TRUE, collapsible = TRUE, showOutput("i343", "highcharts")),
+              box(width = 6, title = bsc$Indicador[26], solidHeader = TRUE, collapsible = TRUE, showOutput("i351", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[27], solidHeader = TRUE, collapsible = TRUE, showOutput("i361", "highcharts")),
+              box(width = 6, title = bsc$Indicador[28], solidHeader = TRUE, collapsible = TRUE, showOutput("i362", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[29], solidHeader = TRUE, collapsible = TRUE, showOutput("i363", "highcharts")),
+              box(width = 6, title = bsc$Indicador[30], solidHeader = TRUE, collapsible = TRUE, showOutput("i371", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[31], solidHeader = TRUE, collapsible = TRUE, showOutput("i372", "highcharts")),
+              box(width = 6, title = bsc$Indicador[32], solidHeader = TRUE, collapsible = TRUE, showOutput("i373", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[33], solidHeader = TRUE, collapsible = TRUE, showOutput("i381", "highcharts")),
+              box(width = 6, title = bsc$Indicador[34], solidHeader = TRUE, collapsible = TRUE, showOutput("i382", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[35], solidHeader = TRUE, collapsible = TRUE, showOutput("i383", "highcharts"))))),
+        tabItem(
+          tabName = "menu1sub3sub4",
+          fluidRow(
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[36], solidHeader = TRUE, collapsible = TRUE, showOutput("i411", "highcharts")),
+              box(width = 6, title = bsc$Indicador[37], solidHeader = TRUE, collapsible = TRUE, showOutput("i412", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[38], solidHeader = TRUE, collapsible = TRUE, showOutput("i413", "highcharts")),
+              box(width = 6, title = bsc$Indicador[39], solidHeader = TRUE, collapsible = TRUE, showOutput("i414", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[40], solidHeader = TRUE, collapsible = TRUE, showOutput("i415", "highcharts")),
+              box(width = 6, title = bsc$Indicador[41], solidHeader = TRUE, collapsible = TRUE, showOutput("i421", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[42], solidHeader = TRUE, collapsible = TRUE, showOutput("i422", "highcharts")),
+              box(width = 6, title = bsc$Indicador[43], solidHeader = TRUE, collapsible = TRUE, showOutput("i431", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[44], solidHeader = TRUE, collapsible = TRUE, showOutput("i432", "highcharts")),
+              box(width = 6, title = bsc$Indicador[45], solidHeader = TRUE, collapsible = TRUE, showOutput("i433", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[46], solidHeader = TRUE, collapsible = TRUE, showOutput("i441", "highcharts")),
+              box(width = 6, title = bsc$Indicador[47], solidHeader = TRUE, collapsible = TRUE, showOutput("i442", "highcharts"))),
+            column(
+              width = 12,
+              box(width = 6, title = bsc$Indicador[48], solidHeader = TRUE, collapsible = TRUE, showOutput("i443", "highcharts")))
+            )
+          )
+        ),
       tags$p("cgpl@ifb.edu.br | Fonte: ",tags$a(href = "http://sgi.prdi.ifb.edu.br/login",target = "_blank","Sistema de Gestão Integrado (SGI)"),update_dbi),
       tags$a(paste0("Beta (",version,")"))
       )
@@ -635,7 +851,6 @@ server <-
       bd <- bind_rows(bd,bd1)
       bd <- spread(data = bd,key = Tipo,value = Valor,fill ="")
       })
-
     output$box.per.res <- renderInfoBox({
       taskitembox(title = dbboxind()$Perspectiva[1],
                   subtitle = paste0(dbboxind()$Percentual[1],"%"),
@@ -674,7 +889,6 @@ server <-
         group_by("Objetivo" = Titulo, "Percentual" = Perc_Terminado) %>%
         summarise()
     })
-
     output$box.obj.res <- renderUI({
       type_color <- "danger"
       box(width = 6,title = strong("P1 RESULTADOS"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
@@ -1236,8 +1450,51 @@ server <-
       h1$series(name = "Pago 2018", data = bd[bd$Ano == "2018" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Pago",]$Valor,color = colorchart$SGISitPrazo$SemData)
       h1$set(width = session$clientData$orc.exe.pag)
       return(h1)
-
     })
+    # INDICADORES PDI
+    output$i111 <- plot_rChart_ifb(id = "i111", fonte = i111, origem = "SISTEC", lim_eixo_y = c(min = 0, max = 10))
+    output$i112 <- plot_rChart_ifb(id = "i112", fonte = i112, origem = "SISTEC", lim_eixo_y = c(min = 0, max = 10))
+    output$i121 <- plot_rChart_campi(id = "i121", fonte = i121, origem = "SISTEC")
+    output$i122 <- plot_rChart_campi(id = "i122", fonte = i122, origem = "SISTEC")
+    output$i123 <- plot_rChart_campi(id = "i123", fonte = i123, origem = "SISTEC")
+    output$i124 <- plot_rChart_campi(id = "i124", fonte = i124, origem = "SISTEC")
+    output$i131 <- plot_rChart_ifb(id = "i131", fonte = i131, origem = "SGI e Google Drive")
+    output$i132 <- plot_rChart_ifb(id = "i132", fonte = i132, origem = "SGI e Google Drive")
+    output$i133 <- plot_rChart_ifb(id = "i133", fonte = i133, origem = "SGI e Google Drive")
+    output$i211 <- plot_rChart_campi(id = "i211", fonte = i211, origem = "SGI e Google Drive")
+    output$i213 <- plot_rChart_ifb(id = "i213", fonte = i213, origem = "SGI e Google Drive")
+    output$i214 <- plot_rChart_ifb(id = "i214", fonte = i214, origem = "SGI e Google Drive")
+    output$i311 <- plot_rChart_ifb(id = "i311", fonte = i311, origem = "SGI e Google Drive")
+    output$i312 <- plot_rChart_ifb(id = "i312", fonte = i312, origem = "SGI e Google Drive")
+    output$i313 <- plot_rChart_ifb(id = "i313", fonte = i313, origem = "SGI e Google Drive")
+    output$i314 <- plot_rChart_ifb(id = "i314", fonte = i314, origem = "SGI e Google Drive")
+    output$i321 <- plot_rChart_ifb(id = "i321", fonte = i321, origem = "SGI e Google Drive")
+    output$i331 <- plot_rChart_ifb(id = "i331", fonte = i331, origem = "SGI e Google Drive")
+    output$i332 <- plot_rChart_ifb(id = "i332", fonte = i332, origem = "SGI e Google Drive")
+    output$i333 <- plot_rChart_ifb(id = "i333", fonte = i333, origem = "SGI e Google Drive")
+    output$i341 <- plot_rChart_ifb(id = "i341", fonte = i341, origem = "SGI e Google Drive")
+    output$i342 <- plot_rChart_ifb(id = "i342", fonte = i342, origem = "SGI e Google Drive")
+    output$i343 <- plot_rChart_ifb(id = "i343", fonte = i343, origem = "SGI e Google Drive")
+    output$i351 <- plot_rChart_ifb(id = "i351", fonte = i351, origem = "SGI e Google Drive")
+    output$i361 <- plot_rChart_campi(id = "i361", fonte = i361, origem = "SGI e Google Drive")
+    output$i362 <- plot_rChart_ifb(id = "i362", fonte = i362, origem = "SGI e Google Drive")
+    output$i363 <- plot_rChart_ifb(id = "i363", fonte = i363, origem = "SGI e Google Drive")
+    output$i371 <- plot_rChart_ifb(id = "i371", fonte = i371, origem = "SISTEC")
+    output$i372 <- plot_rChart_ifb(id = "i372", fonte = i372, origem = "SISTEC")
+    output$i373 <- plot_rChart_ifb(id = "i373", fonte = i373, origem = "SISTEC")
+    output$i381 <- plot_rChart_ifb(id = "i381", fonte = i381, origem = "SISTEC")
+    output$i382 <- plot_rChart_ifb(id = "i382", fonte = i382, origem = "SISTEC")
+    output$i383 <- plot_rChart_ifb(id = "i383", fonte = i383, origem = "SISTEC")
+    output$i411 <- plot_rChart_ifb(id = "i411", fonte = i411, origem = "SGI e Google Drive")
+    output$i412 <- plot_rChart_ifb(id = "i412", fonte = i412, origem = "SGI e Google Drive")
+    output$i413 <- plot_rChart_ifb(id = "i413", fonte = i413, origem = "SGI e Google Drive")
+    output$i414 <- plot_rChart_ifb(id = "i414", fonte = i414, origem = "SGI e Google Drive")
+    output$i415 <- plot_rChart_ifb(id = "i415", fonte = i415, origem = "SGI e Google Drive")
+    output$i421 <- plot_rChart_ifb(id = "i421", fonte = i421, origem = "SGI e Google Drive")
+    output$i422 <- plot_rChart_ifb(id = "i422", fonte = i422, origem = "SGI e Google Drive")
+    output$i441 <- plot_rChart_ifb(id = "i441", fonte = i441, origem = "SGI e Google Drive")
+    output$i442 <- plot_rChart_ifb(id = "i442", fonte = i442, origem = "SGI e Google Drive")
+    output$i443 <- plot_rChart_ifb(id = "i443", fonte = i443, origem = "SGI e Google Drive")
   }
 
-shinyApp(ui,server)
+shinyApp(ui, server)
