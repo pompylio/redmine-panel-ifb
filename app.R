@@ -26,7 +26,15 @@ bsc_meta[is.na(bsc_meta$meta), ]$meta <- 0
 colnames(bsc_meta) <- c("indicador", "ano","meta")
 siafi <- readRDS("data/siafi.rds")
 version <- readRDS("data/version.rds")
-load("data/ind_pdi.rda")
+dt_ind <- c("i111", "i112", "i121", "i122", "i123", "i124", "i131", "i132", "i133", "i211", 
+              "i213", "i214", "i311", "i312", "i313", "i314", "i321", "i331", "i332", "i333", 
+              "i341", "i342", "i343", "i351", "i361", "i362", "i363", "i371", "i372", "i373", 
+              "i381", "i382", "i383", "i411", "i412", "i413", "i414", "i415", "i421", "i422", 
+              "i441", "i442", "i443", "ind_pdi")
+for(i in 1:length(dt_ind)){
+  assign(dt_ind[i] ,readRDS(file = paste0("data/",dt_ind[i],".rds")))
+}
+#load("data/ind_pdi.rda")
 project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670","671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718","719","720"),orcamento = c("683","695"))
 connect <- dbPool(drv = RMySQL::MySQL(), dbname = kpass$dbname, host = kpass$host,username = kpass$username,password = kpass$password,idleTimeout = 3600000)
 conn <- poolCheckout(connect)
@@ -228,7 +236,7 @@ plot_rChart_ifb <- function(id, fonte, origem, lim_eixo_y){
   }
   plot <- renderChart2({
     h1 <- Highcharts$new()
-    h1$chart(type = "areaspline")
+    h1$chart(type = "spline")
     h1$credits(enabled = TRUE, text = paste0("Fonte: ", origem))
     h1$series(name = "Meta", data = db$meta)
     h1$series(name = "Resultado", data = db$resultado)
@@ -321,31 +329,31 @@ ui <-
             text = strong("RESULTADO PDI"),
             icon = icon("caret-right"),
             tabName = 'menu1sub3',
-            startExpanded = TRUE,
+            startExpanded = FALSE,
             menuItem(
               text = strong("Resultados"),
               icon = icon("angle-right"),
               tabName = "menu1sub3sub1",
-              badgeLabel = "N", 
-              badgeColor = "green"), 
+              badgeLabel = "P1", 
+              badgeColor = "red"), 
             menuItem(
               text = strong("Sociedade"),
               icon = icon("angle-right"),
               tabName = "menu1sub3sub2",
-              badgeLabel = "N", 
-              badgeColor = "green"),
+              badgeLabel = "P2", 
+              badgeColor = "yellow"),
             menuItem(
               text = strong("Processos Internos"),
               icon = icon("angle-right"),
               tabName = "menu1sub3sub3",
-              badgeLabel = "N", 
+              badgeLabel = "P3", 
               badgeColor = "green"),
             menuItem(
               text = strong("Pessoas e Tecnologia"),
               icon = icon("angle-right"),
               tabName = "menu1sub3sub4",
-              badgeLabel = "N", 
-              badgeColor = "green")
+              badgeLabel = "P4", 
+              badgeColor = "blue")
             )
         )
         #,
@@ -793,7 +801,12 @@ ui <-
               box(width = 6, title = bsc$Indicador[32], solidHeader = TRUE, collapsible = TRUE, showOutput("i373", "highcharts"))),
             column(
               width = 12,
-              box(width = 6, title = bsc$Indicador[33], solidHeader = TRUE, collapsible = TRUE, showOutput("i381", "highcharts")),
+              box(width = 6, title = bsc$Indicador[33], solidHeader = TRUE, collapsible = TRUE, 
+                  p("Conforme Relatório de Gestão 2017, 'esse é um dos indicadores do Termo de Acordos e Metas e Compromissos (TAM). 
+                     Para não gerar conflito de resultado com o previsto no TAM e com o manual para cálculo dos indicadores de 
+                     gestão da RFEPCT e para não apresentar resultado sem sentido, utilizando o cálculo previsto pelo manual,
+                     o índice de eficácia do PDI não foi mensurado neste exercício'. Para consultar o resultado, acesse: 
+                     http://ifbemnumeros.ifb.edu.br/")),
               box(width = 6, title = bsc$Indicador[34], solidHeader = TRUE, collapsible = TRUE, showOutput("i382", "highcharts"))),
             column(
               width = 12,
