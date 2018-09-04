@@ -168,47 +168,76 @@ i124 <- bind_rows(db2014, db2015, db2016, db2017, db2018)
 
 # 1.3.1 Índice de projetos e programas articulados com ensino, pesquisa e extensão --------------------------------
 
-articulacao_epe <- function(indicador){
-  planilha <- ifelse(indicador == "1.3.1", 1, ifelse(indicador == "1.3.2", 2, ifelse(indicador == "1.3.3", 3, "")))
-  db <- import_sheets(key_url = keys_rei[keys_rei$department == "PREN,PREX,PRPI",]$link,spreadsheet = planilha,col_isna = 1)
-  colnames(db) <- c("descricao","area","sigla_unidade","ano")
-  db$area <- gsub(pattern = "Articulado \\[Ensino Pesquisa e Extensão\\]",replacement = "ENPEEX",x = db$area)
-  db <- db[!(is.na(db$descricao)),]
-  db0 <- db %>%
-    group_by(ano, sigla_unidade) %>%
-    summarise(total = n())
-  db1 <- db  %>%
-    filter(area == "ENPEEX") %>%
-    group_by(ano, sigla_unidade) %>%
-    summarise(total_epe = n())
-  db <- left_join(db0, db1, by = c("ano", "sigla_unidade"))
-  if(any(is.na(db$total))) db[is.na(db$total),]$total <- 0
-  if(any(is.na(db$total_epe))) db[is.na(db$total_epe),]$total_epe <- 0
-  db0 <- db %>% 
-    group_by(ano, sigla_unidade = "IFB") %>% 
-    summarise_at(.vars = c("total","total_epe"), .funs = sum)
-  db <- bind_rows(db, db0)
-  db$resultado <- as.numeric(format((db$total_epe/db$total)*100,digits = 1))
-  db$indicador <- indicador
-  if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado = 0
-  if (indicador == "1.3.1") db <- db[,c("indicador", "ano", "sigla_unidade", "resultado")]
-  if (indicador == "1.3.2" || indicador == "1.3.3") {
-    db <- db[,c("indicador", "ano", "sigla_unidade", "total_epe")]
-    colnames(db) <- c("indicador", "ano", "sigla_unidade", "resultado")
-  }
-  db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
-  db <- db[,c("indicador", "ano", "sigla_unidade", "meta", "resultado")]
-  return(db)
+db <- import_sheets(key_url = keys_rei[keys_rei$department == "PREN,PREX,PRPI",]$link,spreadsheet = 1,col_isna = 1)
+colnames(db) <- c("descricao","area","sigla_unidade","ano")
+db <- db[, c("descricao", "sigla_unidade", "ano", "area")]
+for(i in 1:NROW(keys_cam)){
+  assign(keys_cam$department[i], import_sheets(key_url = keys_cam$link[i], spreadsheet = 2, col_isna = 1))
 }
-i131 <- articulacao_epe(indicador = "1.3.1")
+db1 <- bind_rows(CTAG, CSSB, CSAM, CRFI, CREM, CPLA, CGAM, CEST, CCEI, CBRA)
+colnames(db1) <- c("descricao","area","sigla_unidade","ano")
+db <- db[, c("descricao", "sigla_unidade", "ano", "area")]
+db <- bind_rows(db, db1)
+db$area <- gsub(pattern = "Articulado \\[Ensino Pesquisa e Extensão\\]",replacement = "ENPEEX",x = db$area)
+db <- db[!(is.na(db$descricao)),]
+db0 <- db %>%
+  group_by(ano, sigla_unidade) %>%
+  summarise(total = n())
+db1 <- db  %>%
+  filter(area == "ENPEEX") %>%
+  group_by(ano, sigla_unidade) %>%
+  summarise(total_epe = n())
+db <- left_join(db0, db1, by = c("ano", "sigla_unidade"))
+if(any(is.na(db$total))) db[is.na(db$total), ]$total <- 0
+if(any(is.na(db$total_epe))) db[is.na(db$total_epe), ]$total_epe <- 0
+db <- db %>% group_by(ano, sigla_unidade = "IFB") %>% summarise_at(.vars = c("total", "total_epe"), .funs = sum)
+db$resultado <- as.numeric(format((db$total_epe/db$total)*100,digits = 1))
+db$indicador <- "1.3.1"
+if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado = 0
+db <- db[, c("indicador", "ano", "sigla_unidade", "resultado")]
+db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
+i131 <- db[, c("indicador", "ano", "sigla_unidade", "meta","resultado")]
 
 # 1.3.2 Número de editais conjuntos ensino, pesquisa e extensão ---------------------------------------------------
 
-i132 <- articulacao_epe(indicador = "1.3.2")
+db <- import_sheets(key_url = keys_rei[keys_rei$department == "PREN,PREX,PRPI",]$link,spreadsheet = 2,col_isna = 1)
+colnames(db) <- c("descricao", "sigla_unidade", "ano", "observacao")
+#for(i in 1:NROW(keys_cam)){
+#  assign(keys_cam$department[i], import_sheets(key_url = keys_cam$link[i], spreadsheet = 3, col_isna = 1))
+#}
+#db1 <- bind_rows(CTAG, CSSB, CSAM, CRFI, CREM, CPLA, CGAM, CEST, CCEI, CBRA)
+#colnames(db1) <- c("descricao", "sigla_unidade", "ano", "observacao")
+#db <- bind_rows(db, db1)
+db <- db %>% group_by(ano, sigla_unidade = "IFB") %>% summarise(resultado = n())
+db$indicador <- "1.3.2"
+if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado = 0
+db <- db[, c("indicador", "ano", "sigla_unidade", "resultado")]
+db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
+i132 <-  db[, c("indicador", "ano", "sigla_unidade", "meta","resultado")]
 
 # 1.3.3 Número de seminários, feiras, fóruns e congressos articulados com ensino, pesquisa e extensão -------------
 
-i133 <- articulacao_epe(indicador = "1.3.3")
+db <- import_sheets(key_url = keys_rei[keys_rei$department == "PREN,PREX,PRPI",]$link,spreadsheet = 3,col_isna = 1)
+colnames(db) <- c("descricao","area","sigla_unidade","ano")
+db <- db[, c("descricao", "sigla_unidade", "ano", "area")]
+for(i in 1:NROW(keys_cam)){
+  assign(keys_cam$department[i], import_sheets(key_url = keys_cam$link[i], spreadsheet = 4, col_isna = 1))
+}
+db1 <- bind_rows(CTAG, CSSB, CSAM, CRFI, CREM, CPLA, CGAM, CEST, CCEI, CBRA)
+colnames(db1) <- c("descricao","area","sigla_unidade","ano")
+db <- db[, c("descricao", "sigla_unidade", "ano", "area")]
+db <- bind_rows(db, db1)
+db$area <- gsub(pattern = "Articulado \\[Ensino Pesquisa e Extensão\\]",replacement = "ENPEEX",x = db$area)
+db <- db[!(is.na(db$descricao)),]
+db <- db  %>%
+  filter(area == "ENPEEX") %>%
+  group_by(ano, sigla_unidade = "IFB") %>%
+  summarise(resultado = n())
+db$indicador <- "1.3.3"
+if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado = 0
+db <- db[, c("indicador", "ano", "sigla_unidade", "resultado")]
+db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
+i133 <-  db[, c("indicador", "ano", "sigla_unidade", "meta","resultado")]
 
 # 2.1.1 Índice de participação da comunidade escolar nas políticas educacionais do Campus -------------------------
 
@@ -254,23 +283,30 @@ db1 <- db %>%
   summarise(total_formacao = sum(total_formacao, na.rm = TRUE),
             total = sum(total, na.rm = TRUE))
 db <- bind_rows(db,db1)
+if(any(is.na(db$total_formacao))) db[is.na(db$total_formacao), ]$total_formacao = 0
+if(any(is.na(db$total))) db[is.na(db$total), ]$total = 0
 db$resultado <- (db$total_formacao/db$total)*100
 db$indicador <- "2.1.3"
 if(any(is.na(db$resultado))) db[is.na(db$resultado), ]$resultado = 0
 db <- db[, c("indicador", "ano", "sigla_unidade", "resultado")]
 db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
 i213 <- db[,c("indicador", "ano", "sigla_unidade", "meta", "resultado")]
+#i213$resultado[nrow(i213)] <- 0
 
 # 2.1.4 Percentual de doutores em função dos docentes em efetivo exercício ----------------------------------------
 
 db <- import_sheets(key_url = keys_rei[keys_rei$department == "PRGP",]$link,spreadsheet = 1,col_isna = 1)
 colnames(db) <- c("ano","sigla_unidade","total_formacao","total","percentual")
-db <- db[,c(1:4)]
+db <- db[, c(1:4)]
 db$total_formacao <- as.numeric(db$total_formacao)
 db$total <- as.numeric(db$total)
+if(any(is.na(db$total_formacao))) db[is.na(db$total_formacao), ]$total_formacao = 0
+if(any(is.na(db$total))) db[is.na(db$total), ]$total = 0
 db0 <- db %>%
-  group_by(ano, sigla_unidade = "IFB") %>%
+  filter(!sigla_unidade == "Reitoria") %>% 
+  group_by(ano) %>%
   summarise_at(.vars = c("total_formacao", "total"), .funs = sum)
+db0$sigla_unidade <- "IFB"
 db <- bind_rows(db,db0)
 db$resultado <- (db$total_formacao/db$total)*100
 db$indicador <- "2.1.4"
@@ -406,16 +442,16 @@ i332 <- tibble(
   ano = c("2014", "2015", "2016", "2017", "2018"),
   sigla_unidade = c("IFB", "IFB", "IFB", "IFB", "IFB"),
   meta = c(0, 0, 1, 0, 1),
-  resultado = c(0, 0, 1, 0, 0)
+  resultado = c(0, 0, 1, 0, 1)
 )
 
 # 3.3.3 Número de eventos relacionados à Gestão Democrática -------------------------------------------------------
 
 for(i in 1:NROW(keys_cam)){
-  assign(keys_cam$department[i],import_sheets(key_url = keys_cam$link[i],spreadsheet = 10,col_isna = 1))
+  assign(keys_cam$department[i],import_sheets(key_url = keys_cam$link[i],spreadsheet = 7,col_isna = 1))
 }
 db <- bind_rows(CTAG, CSSB, CSAM, CRFI, CREM, CPLA, CGAM, CEST, CCEI, CBRA)
-colnames(db) <- c("descricao", "sigla_unidade", "ano", "observacao")
+colnames(db) <- c("descricao", "sigla_unidade", "ano")
 db0 <- db %>% group_by(ano, sigla_unidade) %>% summarise(resultado = n())
 db1 <- db %>% group_by(ano, sigla_unidade = "IFB") %>% summarise(resultado = n())
 db <- bind_rows(db0, db1)
@@ -433,7 +469,7 @@ db <- db[,c(1:3)]
 db$inicio <- substr(db$inicio, nchar(db$inicio)-3, nchar(db$inicio))
 db$fim <- substr(db$fim, nchar(db$fim)-3, nchar(db$fim))
 db$fim <- gsub(pattern = "[a-z]|[A-Z]", replacement = "", x = db$fim)
-db[db$fim == "", ]$fim <- 2030
+if (any(db$fim == "")) db[db$fim == "", ]$fim <- 2030
 db$inicio <- as.numeric(db$inicio)
 db$fim <- as.numeric(db$fim)
 db2014 <- db %>% filter(inicio < 2015, fim >= 2014) %>% group_by(ano = "2014") %>% summarise(resultado = n())
@@ -791,6 +827,7 @@ db <- db[, c("indicador", "ano", "sigla_unidade", "resultado")]
 db <- db %>% left_join(bsc_meta, by = c("indicador", "ano"))
 i411 <- db[, c("indicador", "ano", "sigla_unidade", "meta", "resultado")]
 
+
 # 4.1.2 Índice de execução do orçamento com capacitação -----------------------------------------------------------
 
 db <- import_sheets(key_url = keys_rei[keys_rei$department == "PRGP",]$link, spreadsheet = 5, col_isna = 1)
@@ -971,6 +1008,9 @@ ind_pdi <- bind_rows(i111,i112,i121,i123,i124,i131,i132,i133,i211,i213,i214,
                      i412,i413,i414,i415,i421,i422,i441,i442,i443)
 rm(i, ind, ini, import_sheets)
 data_session <- c(ls(pattern = "^i"))
+for(i in 1:length(data_session)){
+  saveRDS(object = get(data_session[i]),file = paste0("data/",data_session[i],".rds"))
+}
 save(list = data_session, file = "data/ind_pdi.rda")
 gs_deauth()
 rm(list = ls())
