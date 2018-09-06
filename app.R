@@ -844,8 +844,9 @@ ui <-
             )
           )
         ),
-      tags$p("cgpl@ifb.edu.br | Fonte: ",tags$a(href = "http://sgi.prdi.ifb.edu.br/login",target = "_blank","Sistema de Gestão Integrado (SGI)"),update_dbi),
-      tags$a(paste0("Beta (",version,")"))
+      tags$a(href="https://github.com/pompylio/redmine-panel-ifb", target="_new", icon("github"), style="font-size:25px;color:black"),
+      tags$p("cgpl@ifb.edu.br | ", update_dbi, " | ", tags$a(href = "http://sgi.prdi.ifb.edu.br/login", target = "_blank", "SGI"), " e ",
+             tags$a(href = "http://sistec.mec.gov.br/login/login", target = "_blank","SISTEC"))
       )
     )
 
@@ -865,34 +866,38 @@ server <-
       bd <- spread(data = bd,key = Tipo,value = Valor,fill ="")
       })
     output$box.per.res <- renderInfoBox({
-      taskitembox(title = dbboxind()$Perspectiva[1],
-                  subtitle = paste0(dbboxind()$Percentual[1],"%"),
-                  value = dbboxind()$Percentual[1],
-                  description= paste(dbboxind()$Quantidade[1],"ações"),
+      db <- dbboxind()[dbboxind()$Perspectiva == "Resultados", ]
+      taskitembox(title = db$Perspectiva,
+                  subtitle = paste0(db$Percentual,"%"),
+                  value = db$Percentual,
+                  description= paste("% de execução das", db$Quantidade,"ações"),
                   color = "red",
                   icon = "fa fa-line-chart")
     })
     output$box.per.soc <- renderInfoBox({
-      taskitembox(title = dbboxind()$Perspectiva[2],
-                  subtitle = paste0(dbboxind()$Percentual[2],"%"),
-                  value = dbboxind()$Percentual[2],
-                  description= paste(dbboxind()$Quantidade[2],"ações"),
+      db <- dbboxind()[dbboxind()$Perspectiva == "Sociedade", ]
+      taskitembox(title = db$Perspectiva,
+                  subtitle = paste0(db$Percentual,"%"),
+                  value = db$Percentual,
+                  description= paste("% de execução das", db$Quantidade,"ações"),
                   color = "yellow",
                   icon = "fa fa-users")
     })
     output$box.per.pro <- renderInfoBox({
-      taskitembox(title = dbboxind()$Perspectiva[3],
-                  subtitle = paste0(dbboxind()$Percentual[3],"%"),
-                  value = dbboxind()$Percentual[3],
-                  description= paste(dbboxind()$Quantidade[3],"ações"),
+      db <- dbboxind()[dbboxind()$Perspectiva == "Processos Internos", ]
+      taskitembox(title = db$Perspectiva,
+                  subtitle = paste0(db$Percentual,"%"),
+                  value = db$Percentual,
+                  description= paste("% de execução das", db$Quantidade,"ações"),
                   color = "green",
                   icon = "fa fa-tasks")
     })
     output$box.per.pes <- renderInfoBox({
-      taskitembox(title = dbboxind()$Perspectiva[4],
-                  subtitle = paste0(dbboxind()$Percentual[4],"%"),
-                  value = dbboxind()$Percentual[4],
-                  description= paste(dbboxind()$Quantidade[4],"ações"),
+      db <- dbboxind()[dbboxind()$Perspectiva == "Pessoas e Tecnologia", ]
+      taskitembox(title = db$Perspectiva,
+                  subtitle = paste0(db$Percentual,"%"),
+                  value = db$Percentual,
+                  description= paste("% de execução das", db$Quantidade,"ações"),
                   color = "blue",
                   icon = "fa fa-wrench")
     })
