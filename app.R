@@ -1286,12 +1286,18 @@ server <-
         arrange(Indicador,Id)
       bd$Inicio <- format(bd$Inicio,"%d/%m/%Y")
       bd$Fim <- format(bd$Fim,"%d/%m/%Y")
-      bd <- bd[,c("Id","Titulo","Indicador","Envolvido","Inicio","Fim","Percentual")]
+      bd$Id <- paste0('<a href="http://sgi.prdi.ifb.edu.br/issues/', bd$Id,'">',bd$Id,'</a>')
+      bd <- bd[, c("Id","Indicador","Titulo","Envolvido","Inicio","Fim","Percentual")]
     })
     output$tab.aca.env <- renderDataTable({
       datatable(dbtabenv(),
-                rownames = FALSE,
-                options = list(language = list(url ='http://cdn.datatables.net/plug-ins/1.10.7/i18n/Portuguese-Brasil.json')))
+                rownames = FALSE, escape = FALSE, colnames = c("#", "Indicador", "Ação", "Envolvido", "Início", "Fim", "%"),
+                options = list(language = list(url ='http://cdn.datatables.net/plug-ins/1.10.7/i18n/Portuguese-Brasil.json'))) %>% 
+        formatStyle("Percentual",
+                    background = styleColorBar(dbtabenv()$Percentual, 'lightblue'),
+                    backgroundSize = '100% 90%',
+                    backgroundRepeat = 'no-repeat',
+                    backgroundPosition = 'center')
     })
     #ORÇAMENTO - PREVISÃO
     dborcaca <- bdg_lim_aca(DBS = sgi,ANO = "2018")
