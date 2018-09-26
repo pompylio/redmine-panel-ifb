@@ -268,3 +268,13 @@ ind_sit_ger <- function(database,department,col_select,year){
   return(db)
 }
 
+import_data <- function(pasta = "data/", extensao = "rds"){
+  pathit <- function(FUN, path){
+    function(file, ...) FUN(file = file.path(path, file), ...)
+  }
+  readRDS2 <- pathit(readRDS, pasta)
+  temp = list.files(path = pasta, pattern= paste0("*.",extensao))
+  list2env(lapply(setNames(temp, make.names(gsub(paste0("*.", extensao, "$"), "", temp))), readRDS2), envir = .GlobalEnv)
+}
+
+
