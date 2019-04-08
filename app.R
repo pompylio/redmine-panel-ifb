@@ -35,7 +35,10 @@ for(i in 1:length(dt_ind)){
   assign(dt_ind[i] ,readRDS(file = paste0("data/",dt_ind[i],".rds")))
 }
 #load("data/ind_pdi.rda")
-project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670","671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718","719","720"),orcamento = c("683","695"))
+project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670",
+                                     "671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718",
+                                     "719","720","755","756","757","758","759","760","761","762","763","764","765","766","767","768","769","770",
+                                     "771","772","773","774"),orcamento = c("683","695"))
 connect <- dbPool(drv = RMySQL::MySQL(), dbname = kpass$dbname, host = kpass$host,username = kpass$username,password = kpass$password,idleTimeout = 3600000)
 conn <- poolCheckout(connect)
 date_dbi <- dbWithTransaction(conn, {dbGetQuery(conn, "SELECT updated_on FROM issues ORDER BY updated_on DESC LIMIT 1")})
@@ -403,7 +406,7 @@ ui <-
               width = 12,
               column(
                 width = 12,
-                selectInput(inputId = "year0",label = "Ano:",choices = c("2017","2018"),selected = "2018")),
+                selectInput(inputId = "year0",label = "Ano:",choices = c("2017","2018","2019"),selected = "2019")),
               column(width = 12,tags$p(tags$h4(strong("PERSPECTIVAS"))),br())),
             column(
               width = 12,
@@ -429,7 +432,7 @@ ui <-
               width = 12,
               column(
                 width = 12,
-                selectInput(inputId = "year1",label = "Ano:",choices = c("2017","2018"),selected = "2018")),
+                selectInput(inputId = "year1",label = "Ano:",choices = c("2017","2018", "2019"),selected = "2019")),
               column(
                 width = 6,
                 selectInput(
@@ -488,7 +491,7 @@ ui <-
           fluidRow(
             column(
               width = 12,
-              selectInput(inputId = "year2",label = "Ano:",choices = c("2017","2018"),selected = "2018")),
+              selectInput(inputId = "year2",label = "Ano:",choices = c("2017","2018","2019"),selected = "2019")),
             box(
               width = 3,
               title = "Por Situação",
@@ -525,8 +528,8 @@ ui <-
                 selectInput(
                   inputId = "year3",
                   label = "Ano:",
-                  choices = c("2017","2018"),
-                  selected = "2018")),
+                  choices = c("2017","2019"),
+                  selected = "2019")),
               column(
                 width = 4,
                 selectInput(
