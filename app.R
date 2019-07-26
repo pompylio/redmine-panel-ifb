@@ -34,7 +34,6 @@ dt_ind <- c("i111", "i112", "i121", "i122", "i123", "i124", "i131", "i132", "i13
 for(i in 1:length(dt_ind)){
   assign(dt_ind[i] ,readRDS(file = paste0("data/",dt_ind[i],".rds")))
 }
-#load("data/ind_pdi.rda")
 project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670",
                                      "671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718",
                                      "719","720","755","756","757","758","759","760","761","762","763","764","765","766","767","768","769","770",
@@ -358,31 +357,9 @@ ui <-
               badgeLabel = "P4", 
               badgeColor = "blue")
             )
+          )
         )
-        #,
-        # menuItem(
-        # text = strong("ORÇAMENTO"),
-        # tabName = 'menu2',
-        # icon = icon("calculator"),
-        # startExpanded = TRUE,
-        # menuSubItem(
-        # text = strong("PREVISÃO"),
-        # tabName = "menu2sub1",
-        # icon = icon("caret-right")
-        # ),
-        # menuSubItem(
-        # text = strong("EXECUÇÃO"),
-        # tabName = "menu2sub2",
-        # icon = icon("caret-right")
-        # ),
-        # menuSubItem(
-        # text = strong("COMPARAÇÃO"),
-        # tabName = "menu2sub3",
-        # icon = icon("caret-right")
-        # )
-        # )
-      )
-    ),
+      ),
     dashboardBody(
       tags$head(
         tags$head(HTML(
@@ -406,8 +383,14 @@ ui <-
               width = 12,
               column(
                 width = 12,
-                selectInput(inputId = "year0",label = "Ano:",choices = c("2017","2018","2019"),selected = "2019")),
-              column(width = 12,tags$p(tags$h4(strong("PERSPECTIVAS"))),br())),
+                selectInput(
+                  inputId = "year0",
+                  label = "Ano:",
+                  choices = c("2017","2018","2019"),
+                  selected = "2019")),
+              column(
+                width = 12,
+                tags$p(tags$h4(strong("PERSPECTIVAS"))),br())),
             column(
               width = 12,
               column(width = 3, htmlOutput("box.per.res")),
@@ -432,7 +415,11 @@ ui <-
               width = 12,
               column(
                 width = 12,
-                selectInput(inputId = "year1",label = "Ano:",choices = c("2017","2018", "2019"),selected = "2019")),
+                selectInput(
+                  inputId = "year1",
+                  label = "Ano:",
+                  choices = c("2017","2018", "2019"),
+                  selected = "2019")),
               column(
                 width = 6,
                 selectInput(
@@ -491,7 +478,11 @@ ui <-
           fluidRow(
             column(
               width = 12,
-              selectInput(inputId = "year2",label = "Ano:",choices = c("2017","2018","2019"),selected = "2019")),
+              selectInput(
+                inputId = "year2",
+                label = "Ano:",
+                choices = c("2017","2018","2019"),
+                selected = "2019")),
             box(
               width = 3,
               title = "Por Situação",
@@ -528,7 +519,7 @@ ui <-
                 selectInput(
                   inputId = "year3",
                   label = "Ano:",
-                  choices = c("2017","2019"),
+                  choices = c("2017", "2018","2019"),
                   selected = "2019")),
               column(
                 width = 4,
@@ -1042,11 +1033,11 @@ server <-
     dbacacom <- reactive({
       bd0 <- sgi %>%
         filter(Tipo == "Acao" & Tipo1 == "Indicador",Ano == input$year2,Id_Projeto %in% project_app$planejamento) %>%
-        group_by(Unidade,Tipo = Situacao_Corrigida) %>%
+        group_by(Unidade, Tipo = Situacao_Corrigida) %>%
         summarise(Valor= n())
       bd1 <- sgi %>%
-        filter(Tipo == "Acao" & Tipo1 == "Indicador",Ano == input$year2,Id_Projeto %in% project_app$planejamento) %>%
-        group_by(Unidade,Tipo = Situacao_Prazo) %>%
+        filter(Tipo == "Acao" & Tipo1 == "Indicador", Ano == input$year2,Id_Projeto %in% project_app$planejamento) %>%
+        group_by(Unidade, Tipo = Situacao_Prazo) %>%
         summarise(Valor = n())
       bd2 <- sgi %>%
         filter(Tipo == "Acao" & Tipo1 == "Indicador",Ano == input$year2,Id_Projeto %in% project_app$planejamento) %>%
@@ -1054,20 +1045,37 @@ server <-
         summarise(Valor = n())
       bd3 <- bind_rows(bd0,bd1,bd2) %>% group_by(Tipo) %>% summarise(Valor = sum(Valor,na.rm=TRUE))
       bd3$Unidade <- "IFB"
-      bd3 <- bd3[,c(3,1,2)]
+      bd3 <- bd3[, c(3, 1, 2)]
       bd <- bind_rows(bd0,bd1,bd2,bd3)
+      if(any(is.na(bd$Tipo))){
+        bd <- bd[!is.na(bd$Tipo),]
+      }
+      bd
     })
     output$aca.sit.ger <- renderChart2({
+      bd <- dbacacom()[dbacacom()$Unidade == "IFB",]
+      if(!any(bd$Tipo == "Nao_Iniciada")){
+        db <- tibble(Unidade = "IFB", Tipo = "Nao_Iniciada", Valor = 0L)
+        bd <- bind_rows(bd, db)
+      }
+      if(!any(bd$Tipo == "Iniciada")){
+        db <- tibble(Unidade = "IFB", Tipo = "Iniciada", Valor = 0L)
+        bd <- bind_rows(bd, db)
+      }
+      if(!any(bd$Tipo == "Finalizada")){
+        db <- tibble(Unidade = "IFB", Tipo = "Finalizada", Valor = 0L)
+        bd <- bind_rows(bd, db)
+      }
       h1 <- Highcharts$new()
       h1$chart(type = "pie")
       h1$credits(enabled=FALSE)
       h1$series(data = list(
-        list(name = "Não Iniciada",y = dbacacom()[dbacacom()$Unidade == "IFB" & dbacacom()$Tipo == "Nao_Iniciada",]$Valor,color = colorchart$SGISitTarefa$NaoIniciada),
-        list(name = "Iniciada",y = dbacacom()[dbacacom()$Unidade == "IFB" & dbacacom()$Tipo == "Iniciada",]$Valor,color = colorchart$SGISitTarefa$Iniciada),
-        list(name = "Finalizada",y = dbacacom()[dbacacom()$Unidade == "IFB" & dbacacom()$Tipo == "Finalizada",]$Valor,color = colorchart$SGISitTarefa$Finalizada),
-        list(name = "Fechada",y = dbacacom()[dbacacom()$Unidade == "IFB" & dbacacom()$Tipo == "Fechada",]$Valor,color = colorchart$SGISitTarefa$Fechada)))
+        list(name = "Não Iniciada", y = bd[bd$Tipo == "Nao_Iniciada",]$Valor,color = colorchart$SGISitTarefa$NaoIniciada),
+        list(name = "Iniciada",y = bd[bd$Tipo == "Iniciada",]$Valor,color = colorchart$SGISitTarefa$Iniciada),
+        list(name = "Finalizada",y = bd[bd$Tipo == "Finalizada",]$Valor,color = colorchart$SGISitTarefa$Finalizada),
+        list(name = "Fechada",y = bd[bd$Tipo == "Fechada",]$Valor,color = colorchart$SGISitTarefa$Fechada)))
       h1$tooltip(pointFormat = '{point.y}<br/>{point.percentage:.1f}%<br/>')
-      h1$plotOptions(pie = list(dataLabels = list(enabled = FALSE),allowPointSelect = TRUE,showInLegend = TRUE))
+      h1$plotOptions(pie = list(dataLabels = list(enabled = FALSE), allowPointSelect = TRUE, showInLegend = TRUE))
       h1$set(width = session$clientData$aca.sit.ger)
       return(h1)
     })
