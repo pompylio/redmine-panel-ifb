@@ -52,31 +52,15 @@ projects[,sapply(projects, class) == "character"] <- apply(X = projects[,sapply(
 trackers$name <- iconv(x = trackers$name,from = "latin1",to = "UTF-8")
 users[,sapply(users, class) == "character"] <- apply(X = users[,sapply(users, class) == "character"],MARGIN = 2,FUN = function(y){iconv(x = y,from = "latin1",to = "UTF-8")})
 custom_values <- merge(x = custom_values,y = custom_fields[,c("id","name")],by.x = "custom_field_id",by.y = "id",all.x = TRUE,sort = FALSE)
-custom_values <- custom_values[custom_values$custom_field_id %in% c(120,121,122,136,145,146,147),c("custom_field_id","customized_id","name","value")]
+custom_values <- custom_values[custom_values$custom_field_id %in% c(120,121,122,147),c("custom_field_id","customized_id","name","value")]
 custom_values[custom_values$custom_field_id %in% c(120,121,122),]$name <- "Setor"
-custom_values[custom_values$custom_field_id %in% c(136),]$name <- "Natureza_de_Despesa"
-custom_values[custom_values$custom_field_id %in% c(145),]$name <- "Limite_Orcamentario"
-custom_values[custom_values$custom_field_id %in% c(146),]$name <- "Orcamento_Previsto"
 custom_values[custom_values$custom_field_id %in% c(147),]$name <- "Validacao"
 custom_values <- custom_values[,-c(1)]
 custom_values1 <- custom_values[custom_values$name == "Setor",]
 custom_values1 <- spread(data = custom_values1,key = name,value = value,fill = "")
-custom_values2 <- custom_values[custom_values$name == "Natureza_de_Despesa",]
-custom_values2 <- spread(data = custom_values2,key = name,value = value,fill = "")
-custom_values3 <- custom_values[custom_values$name == "Limite_Orcamentario",]
-custom_values3 <- spread(data = custom_values3,key = name,value = value,fill = "")
-custom_values3$Limite_Orcamentario <- str_replace_all(string = custom_values3$Limite_Orcamentario,c("[.]"="","[,]"="."))
-custom_values3$Limite_Orcamentario <- as.numeric(custom_values3$Limite_Orcamentario)
-custom_values4 <- custom_values[custom_values$name == "Orcamento_Previsto",]
-custom_values4 <- spread(data = custom_values4,key = name,value = value,fill = "")
-custom_values4$Orcamento_Previsto <- str_replace_all(string = custom_values4$Orcamento_Previsto,c("[.]"="","[,]"="."))
-custom_values4$Orcamento_Previsto <- as.numeric(custom_values4$Orcamento_Previsto)
 custom_values5 <- custom_values[custom_values$name == "Validacao",]
 custom_values5 <- spread(data = custom_values5,key = name,value = value,fill = "")
-custom_values <- merge(x = custom_values1,y = custom_values2,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values3,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values4,by.x = "customized_id",by.y = "customized_id",all = TRUE)
-custom_values <- merge(x = custom_values,y = custom_values5,by.x = "customized_id",by.y = "customized_id",all = TRUE)
+custom_values <- merge(x = custom_values1,y = custom_values5,by.x = "customized_id",by.y = "customized_id",all = TRUE)
 issues <- issues[issues$project_id %in% c(project_app$planejamento,project_app$orcamento),]
 issues <- merge(x = issues,y = trackers[,c("id","name")],by.x = "tracker_id",by.y = "id",all.x = TRUE,sort = FALSE)
 issues <- merge(x = issues,y = projects[,c("id","name","status")],by.x = "project_id",by.y = "id",suffixes = c("","_project"),all.x = TRUE,sort = FALSE)
@@ -110,88 +94,13 @@ issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.
 issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id1",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","2"))
 issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id2",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","3"))
 issues <- merge(x = issues,y = issues[,c("id","name","parent_id","subject")],by.x = "parent_id3",by.y = "id",all.x = TRUE,sort = FALSE,suffixes = c("","4"))
-issues <- issues[,c("id","subject","name","Ano","Unidade","project_id","name_project","name_status","Situacao_Corrigida","Situacao_Prazo","assign","updated_on","start_date","due_date","done_ratio","parent_id","parent_id1","subject1","name1","parent_id2","subject2","name2","parent_id3","subject3","name3","parent_id4","subject4","name4","Setor","Setor_Sigla","Natureza_de_Despesa","Limite_Orcamentario","Orcamento_Previsto","Validacao")]
-names(issues) <- c("Id","Titulo","Tipo","Ano","Unidade","Id_Projeto","Projeto","Situacao","Situacao_Corrigida","Situacao_Prazo","Atribuido_para","Atualizado_em","Inicio","Data_prevista","Perc_Terminado","Cod_Tarefa_Pai","Cod_Tarefa_Pai1","Titulo1","Tipo1","Cod_Tarefa_Pai2","Titulo2","Tipo2","Cod_Tarefa_Pai3","Titulo3","Tipo3","Cod_Tarefa_Pai4","Titulo4","Tipo4","Setor","Setor_Sigla","Natureza_Despesa","Limite_Orcamento","Orcamento_Previsto","Validacao")
+issues <- issues[,c("id","subject","name","Ano","Unidade","project_id","name_project","name_status","Situacao_Corrigida","Situacao_Prazo","assign","updated_on","start_date","due_date","done_ratio","parent_id","parent_id1","subject1","name1","parent_id2","subject2","name2","parent_id3","subject3","name3","parent_id4","subject4","name4","Setor","Setor_Sigla","Validacao")]
+names(issues) <- c("Id","Titulo","Tipo","Ano","Unidade","Id_Projeto","Projeto","Situacao","Situacao_Corrigida","Situacao_Prazo","Atribuido_para","Atualizado_em","Inicio","Data_prevista","Perc_Terminado","Cod_Tarefa_Pai","Cod_Tarefa_Pai1","Titulo1","Tipo1","Cod_Tarefa_Pai2","Titulo2","Tipo2","Cod_Tarefa_Pai3","Titulo3","Tipo3","Cod_Tarefa_Pai4","Titulo4","Tipo4","Setor","Setor_Sigla","Validacao")
 sgi <- issues
 poolReturn(conn)
 onStop(function() {poolClose(connect)})
 vals <- reactiveValues(count=0)
 # FUNCTIONS -------------------------------------------------------------------------------------------------------
-bdg_lim_aca <- function(DBS,ANO,...){
-  sgi$Unidade <- as.character(as.factor(sgi$Unidade))
-  bd0 <- DBS %>%
-    filter(Tipo == "Acao Orcamentaria",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade = "IFB",Cod_Acao_Orcamentaria = substr(Titulo,1,4),Titulo) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd1 <- DBS %>%
-    filter(Tipo == "Categoria do Gasto",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade = "IFB",Cod_Acao_Orcamentaria = substr(Titulo1,1,4),Titulo = Titulo1) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd2 <- DBS %>%
-    filter(Tipo == "Despesa Prevista",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade = "IFB",Cod_Acao_Orcamentaria = substr(Titulo2,1,4),Titulo = Titulo2) %>%
-    summarise(Previsto = sum(Orcamento_Previsto,na.rm=TRUE))
-  bd3 <- DBS %>%
-    filter(Tipo == "Acao Orcamentaria",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade,Cod_Acao_Orcamentaria = substr(Titulo,1,4),Titulo) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd4 <- DBS %>%
-    filter(Tipo == "Categoria do Gasto",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade,Cod_Acao_Orcamentaria = substr(Titulo1,1,4),Titulo = Titulo1) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd5 <- DBS %>%
-    filter(Tipo == "Despesa Prevista",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade,Cod_Acao_Orcamentaria = substr(Titulo2,1,4),Titulo = Titulo2) %>%
-    summarise(Previsto = sum(Orcamento_Previsto,na.rm=TRUE))
-  bd <- bind_rows(bd0,bd1,bd2,bd3,bd4,bd5)
-  bd <- bd %>% filter(...)
-  return(bd)
-}
-bdg_lim_cat <- function(DBS,ANO,...){
-  sgi$Unidade <- as.character(as.factor(sgi$Unidade))
-  bd0 <- DBS %>%
-    filter(Tipo == "Categoria do Gasto",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade = "IFB",Cod_Acao_Orcamentaria = substr(Titulo1,1,4),Titulo = substr(Titulo,8,nchar(Titulo))) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd1 <- DBS %>%
-    filter(Tipo == "Despesa Prevista",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade = "IFB",Cod_Acao_Orcamentaria = substr(Titulo2,1,4),Titulo = substr(Titulo1,8,nchar(Titulo1))) %>%
-    summarise(Previsto = sum(Orcamento_Previsto,na.rm=TRUE))
-  bd2 <- DBS %>%
-    filter(Tipo == "Categoria do Gasto",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade,Cod_Acao_Orcamentaria = substr(Titulo1,1,4),Titulo = substr(Titulo,8,nchar(Titulo))) %>%
-    summarise(Previsto = sum(Limite_Orcamento,na.rm=TRUE))
-  bd3 <- DBS %>%
-    filter(Tipo == "Despesa Prevista",Ano == ANO,Id_Projeto %in% project_app$orcamento) %>%
-    group_by(Ano,Tipo,Unidade,Cod_Acao_Orcamentaria = substr(Titulo2,1,4),Titulo = substr(Titulo1,8,nchar(Titulo1))) %>%
-    summarise(Previsto = sum(Orcamento_Previsto,na.rm=TRUE))
-  bd <- bind_rows(bd0,bd1,bd2,bd3)
-  bd <- bd %>% filter(...)
-  return(bd)
-}
-bdg_exe_aca <- function(DBS,...){
-  bd0 <- DBS %>%
-    group_by(ANO,Unidade = "IFB",Cod_Acao_Orcamentaria = CO_ACAO_GOVERNO,Acao_Orcamentaria = paste(CO_ACAO_GOVERNO,NO_ACAO_GOVERNO),...) %>%
-    summarise(
-      Dotacao = sum(DOTACAO_ATUALIZADA,na.rm = TRUE),
-      Provisao = sum(PROVISAO_RECEBIDA,na.rm = TRUE),
-      Destaque = sum(DESTAQUE_RECEBIDO,na.rm = TRUE),
-      Empenhado = sum(DESPESAS_EMPENHADAS,na.rm=TRUE),
-      Liquidado = sum(DESPESAS_LIQUIDADAS,na.rm=TRUE),
-      Pago = sum(DESPESAS_PAGAS,na.rm=TRUE))
-  bd1 <- DBS %>%
-    group_by(ANO,Unidade = UGE_SIGLA,Cod_Acao_Orcamentaria = CO_ACAO_GOVERNO,Acao_Orcamentaria = paste(CO_ACAO_GOVERNO,NO_ACAO_GOVERNO),...) %>%
-    summarise(
-      Dotacao = sum(PROVISAO_RECEBIDA,na.rm = TRUE),
-      Provisao = sum(PROVISAO_RECEBIDA,na.rm = TRUE),
-      Destaque = sum(DESTAQUE_RECEBIDO,na.rm = TRUE),
-      Empenhado = sum(DESPESAS_EMPENHADAS,na.rm=TRUE),
-      Liquidado = sum(DESPESAS_LIQUIDADAS,na.rm=TRUE),
-      Pago = sum(DESPESAS_PAGAS,na.rm=TRUE))
-  bd <- bind_rows(bd0,bd1)
-  bd <- bd %>% filter(Dotacao + Provisao + Empenhado + Liquidado + Pago > 0)
-  return(bd)
-}
 taskitembox <- function(title,subtitle,value,description,color,icon){
   stylecolor <- ifelse(color == "blue","info-box bg-aqua",ifelse(color == "green","info-box bg-green",ifelse(color == "yellow","info-box bg-yellow",ifelse(color == "red","info-box bg-red"))))
   stylevalue <- paste0("width: ",value,"%")
@@ -584,58 +493,6 @@ ui <-
                 DT::dataTableOutput("tab.aca.env")))
           )
         ),
-         tabItem(
-           tabName = "menu2sub1",
-           fluidRow(
-             column(
-               width = 12,
-               br(),
-               column(
-                 width = 3,
-                 selectInput(
-                   inputId = 'input0menu2',
-                   label = "Unidade",
-                   choices = c("IFB","CBRA","CCEI","CEST","CGAM","CPLA","CREM","CRFI","CSAM","CSSB","CTAG","DICOM","DRPO","DTIC",
-                               "GAB-RIFB","PRAD","PREN","PREX","PRGP","PRPI"),
-                   selected = "IFB"))),
-             column(
-               width = 12,
-               box(
-                 title = "Limite por Ação Orçamentária",
-                 width = 4,
-                 solidHeader = TRUE,
-                 collapsible = TRUE,
-                 showOutput("orc.lim.aca", "highcharts")
-               ),
-               box(
-                 title = "Valores Previstos por Ação Orçamentária",
-                 width = 8,
-                 solidHeader = TRUE,
-                 collapsible = TRUE,
-                 showOutput("orc.lim.com", "highcharts")
-               )
-             ),
-             column(
-               width = 12,
-               box(
-                 title = "Limite por Categoria e Despesa",
-                 width = 12,
-                 solidHeader = TRUE,
-                 collapsible = TRUE,
-                 selectInput(
-                   inputId = 'input1menu2',
-                   label = "Ação Orçamentária",
-                   choices = c(
-                     "20RG EXPANSÃO E REESTRUTURAÇÃO" = "20RG",
-                     "20RL FUNCIONAMENTO DA INSTITUIÇÃO" = "20RL",
-                     "2994 ASSISTÊNCIA AOS ESTUDANTES" = "2994",
-                     "4572 CAPACITAÇÃO DE SERVIDORES" = "4572"),
-                   selected = "20RL"),
-                 showOutput("orc.cat.des", "highcharts")
-               )
-             )
-           )
-           ),
          tabItem(
            tabName = "menu2sub2",
            fluidRow(
@@ -1309,182 +1166,6 @@ server <-
                     backgroundSize = '100% 90%',
                     backgroundRepeat = 'no-repeat',
                     backgroundPosition = 'center')
-    })
-    #ORÇAMENTO - PREVISÃO
-    dborcaca <- bdg_lim_aca(DBS = sgi,ANO = "2018")
-    output$orc.lim.aca <- renderChart2({
-      h1 <- Highcharts$new()
-      h1$chart(type = "pie")
-      h1$credits(enabled=FALSE)
-      h1$title(text = '')
-      h1$data(x = dborcaca[dborcaca$Tipo == "Acao Orcamentaria" & dborcaca$Unidade == input$input0menu2,]$Titulo,
-              y = dborcaca[dborcaca$Tipo == "Acao Orcamentaria" & dborcaca$Unidade == input$input0menu2,]$Previsto,name = "Previsto")
-      h1$tooltip(pointFormat = '{point.y}<br/>{point.percentage:.1f}%<br/>')
-      h1$colors(colorchart$SGISitPrazo$Finalizada,colorchart$SGISitPrazo$NoPrazo,colorchart$SGISitPrazo$EmAtraso,colorchart$SGISitPrazo$SemData)
-      h1$plotOptions(pie = list(dataLabels = list(enabled = FALSE),allowPointSelect = TRUE,showInLegend = TRUE))
-      h1$set(width = session$clientData$orc.lim.aca)
-      return(h1)
-    })
-    output$orc.lim.com <- renderChart2({
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$xAxis(categories = c(list(as.character(dborcaca[dborcaca$Unidade == input$input0menu2,]$Titulo))[[1]],as.character(dborcaca[dborcaca$Unidade == input$input0menu2,]$Titulo)))
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 4))
-      h1$series(name = "Limite da Ação",data = dborcaca[dborcaca$Tipo == "Acao Orcamentaria" & dborcaca$Unidade == input$input0menu2,]$Previsto,color = colorchart$SGIExeOrc$Acao)
-      h1$series(name = "Limite da Categoria",data = dborcaca[dborcaca$Tipo == "Categoria do Gasto" & dborcaca$Unidade == input$input0menu2,]$Previsto,color = colorchart$SGIExeOrc$Categoria)
-      h1$series(name = "Despesa Prevista",data = dborcaca[dborcaca$Tipo == "Despesa Prevista" & dborcaca$Unidade == input$input0menu2,]$Previsto,color = colorchart$SGIExeOrc$Despesa)
-      h1$set(width = session$clientData$orc.lim.com)
-      return(h1)
-    })
-    dborccat <- bdg_lim_cat(DBS = sgi,ANO = "2018")
-    output$orc.cat.des <- renderChart2({
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$xAxis(categories = c(list(as.character(dborccat[dborccat$Unidade == input$input0menu2 & dborccat$Cod_Acao_Orcamentaria %in% input$input1menu2,]$Titulo))[[1]],as.character(dborccat[dborccat$Unidade == input$input0menu2 & dborccat$Cod_Acao_Orcamentaria %in% input$input1menu2,]$Titulo)))
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 4))
-      h1$series(name = "Limite da Categoria",data = dborccat[dborccat$Tipo == "Categoria do Gasto" & dborccat$Unidade == input$input0menu2 & dborccat$Cod_Acao_Orcamentaria == input$input1menu2,]$Previsto,color = colorchart$SGIExeOrc$Categoria)
-      h1$series(name = "Despesa Prevista",   data = dborccat[dborccat$Tipo == "Despesa Prevista" & dborccat$Unidade == input$input0menu2 & dborccat$Cod_Acao_Orcamentaria == input$input1menu2,]$Previsto,color = colorchart$SGIExeOrc$Despesa)
-      h1$set(width = session$clientData$orc.cat.des)
-      return(h1)
-    })
-    # ORÇAMENTO - EXECUÇÃO
-    dborcexe <- bdg_exe_aca(DBS = siafi)
-    output$orc.exe.aca <- renderChart2({
-      bd <- bdg_exe_aca(DBS = siafi)[bdg_exe_aca(DBS = siafi)$Cod_Acao_Orcamentaria %in% c("20RG","20RL","2994","4572"),]
-
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$title(text = "")
-      h1$xAxis(categories = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Acao_Orcamentaria)
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 3))
-      if(input$input1menu2sub2 == "IFB"){
-        h1$series(
-          name = "Dotacao",
-          data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Dotacao,
-          color = colorchart$SGISitPrazo$Finalizada)
-      }else if(input$input1menu2sub2 == "REITORIA"){
-        h1$series(
-          name = "Dotacao",
-          data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Dotacao,
-          color = colorchart$SGISitPrazo$Finalizada)
-        h1$series(
-          name = "Provisao",
-          data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Provisao,
-          color = colorchart$SGISitPrazo$Finalizada)
-      }else{
-        h1$series(
-          name = "Provisao",
-          data = bd[bd$Ano == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Provisao,
-          color = colorchart$SGISitPrazo$Finalizada)
-      }
-      h1$series(
-        name = "Empenhado",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Empenhado,
-        color = colorchart$SGISitPrazo$NoPrazo)
-      h1$series(
-        name = "Liquidado",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Liquidado,
-        color = colorchart$SGISitPrazo$EmAtraso)
-      h1$series(
-        name = "Pago",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2,]$Pago,
-        color = colorchart$SGISitPrazo$SemData)
-      h1$set(width = session$clientData$orc.exe.aca)
-      return(h1)
-    })
-    output$orc.exe.cat <- renderChart2({
-      bd <- bdg_exe_aca(DBS = siafi,Titulo = CLASSIFICACAO)
-      bd <- bd[bd$Cod_Acao_Orcamentaria %in% c("20RG","20RL","2994","4572"),]
-
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$xAxis(categories = c(list(
-        as.character(
-          bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2 & bd$Cod_Acao_Orcamentaria %in% input$input2menu2sub2,]$Titulo))[[1]],
-        as.character(
-          bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2 & bd$Cod_Acao_Orcamentaria %in% input$input2menu2sub2,]$Titulo)))
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 4))
-      h1$series(
-        name = "Empenhado",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2& bd$Cod_Acao_Orcamentaria %in% input$input2menu2sub2,]$Empenhado,
-        color = colorchart$SGISitPrazo$NoPrazo)
-      h1$series(
-        name = "Liquidado",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2& bd$Cod_Acao_Orcamentaria %in% input$input2menu2sub2,]$Liquidado,
-        color = colorchart$SGISitPrazo$EmAtraso)
-      h1$series(
-        name = "Pago",
-        data = bd[bd$ANO == input$input0menu2sub2 & bd$Unidade == input$input1menu2sub2& bd$Cod_Acao_Orcamentaria %in% input$input2menu2sub2,]$Pago,
-        color = colorchart$SGISitPrazo$SemData)
-      h1$set(width = session$clientData$orc.exe.cat)
-      return(h1)
-    })
-    output$orc.exe.exe <- renderChart2({
-      bd0 <- bdg_exe_aca(DBS = siafi)[bdg_exe_aca(DBS = siafi)$Cod_Acao_Orcamentaria %in% c("20RG","20RL","2994","4572"),]
-      bd0 <- reshape2::melt(data = bd0,id.vars = c("ANO","Unidade","Cod_Acao_Orcamentaria","Acao_Orcamentaria"),variable.name = "Tipo_Valor",value.name = "Valor")
-      bd0$Tipo_Valor <- as.character(factor(bd0$Tipo_Valor))
-      names(bd0$ANO) <- "Ano"
-      bd1 <- bdg_lim_aca(DBS = sgi,ANO = "2017")[bdg_lim_aca(DBS = sgi,ANO = "2017")$Tipo == "Acao_Orcamentaria",]
-      bd1$Ano <- as.character(factor(bd1$Ano))
-      bd1 <- bd1 %>% group_by(Ano,Unidade,Cod_Acao_Orcamentaria,Acao_Orcamentaria = Titulo,Tipo_Valor = "Previsto",Valor = Previsto) %>% summarise()
-      bd <- bind_rows(bd0,bd1)
-
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$xAxis(categories = c(list(
-        as.character(
-          bd[bd$Unidade == input$input2menu2sub3,]$Cod_Acao_Orcamentaria))[[1]],
-        as.character(
-          bd[bd$Unidade == input$input2menu2sub3,]$Cod_Acao_Orcamentaria)))
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 4))
-      h1$series(name = "Dotação  2016", data = bd[bd$Ano == "2016" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Dotacao" ,]$Valor,color = colorchart$SGIExeOrc$Acao)
-      h1$series(name = "Dotação  2017", data = bd[bd$Ano == "2017" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Dotacao" ,]$Valor,color = colorchart$SGIExeOrc$Categoria)
-      h1$series(name = "Previsto 2018", data = bd[bd$Ano == "2018" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Previsto",]$Valor,color = colorchart$SGIExeOrc$Despesa)
-      h1$set(width = session$clientData$orc.exe.exe)
-      return(h1)
-
-    })
-    output$orc.exe.pag <- renderChart2({
-      bd0 <- bdg_exe_aca(DBS = siafi)[bdg_exe_aca(DBS = siafi)$Cod_Acao_Orcamentaria %in% c("20RG","20RL","2994","4572"),]
-      bd0 <- reshape2::melt(data = bd0,id.vars = c("ANO","Unidade","Cod_Acao_Orcamentaria","Acao_Orcamentaria"),variable.name = "Tipo_Valor",value.name = "Valor")
-      bd0$Tipo_Valor <- as.character(factor(bd0$Tipo_Valor))
-      names(bd0$ANO) <- "Ano"
-      bd1 <- bdg_lim_aca(DBS = sgi,ANO = "2017")[bdg_lim_aca(DBS = sgi,ANO = "2017")$Tipo == "Acao_Orcamentaria",]
-      bd1$Ano <- as.character(factor(bd1$Ano))
-      bd1 <- bd1 %>% group_by(Ano,Unidade,Cod_Acao_Orcamentaria,Acao_Orcamentaria = Titulo,Tipo_Valor = "Previsto",Valor = Previsto) %>% summarise()
-      bd <- bind_rows(bd0,bd1)
-
-      h1 <- Highcharts$new()
-      h1$chart(type = "column")
-      h1$credits(enabled=FALSE)
-      h1$xAxis(categories = c(list(
-        as.character(
-          bd[bd$Unidade == input$input2menu2sub3,]$Cod_Acao_Orcamentaria))[[1]],
-        as.character(
-          bd[bd$Unidade == input$input2menu2sub3,]$Cod_Acao_Orcamentaria)))
-      h1$yAxis(title="",stackLabels = list(enabled = TRUE))
-      h1$tooltip(pointFormat = '{series.name}<br/>{point.y}<br/>')
-      h1$plotOptions(column = list(dataLabels = list(enabled = F),allowPointSelect = T,borderRadius = 4))
-      h1$series(name = "Pago 2016", data = bd[bd$Ano == "2016" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Pago",]$Valor,color = colorchart$SGISitPrazo$NoPrazo)
-      h1$series(name = "Pago 2017", data = bd[bd$Ano == "2017" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Pago",]$Valor,color = colorchart$SGISitPrazo$EmAtraso)
-      h1$series(name = "Pago 2018", data = bd[bd$Ano == "2018" & bd$Unidade == input$input2menu2sub3 & bd$Tipo_Valor == "Pago",]$Valor,color = colorchart$SGISitPrazo$SemData)
-      h1$set(width = session$clientData$orc.exe.pag)
-      return(h1)
     })
     # INDICADORES PDI
     output$i111 <- plot_rChart_ifb(id = "i111", fonte = i111, origem = "SISTEC", lim_eixo_y = c(min = 0, max = 10))
