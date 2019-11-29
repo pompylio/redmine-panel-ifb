@@ -37,7 +37,8 @@ for(i in 1:length(dt_ind)){
 project_app <- list(planejamento = c("640","652","653","654","655","656","657","658","659","660","662","663","664","665","666","667","668","669","670",
                                      "671","697","702","703","704","705","706","707","708","709","710","711","712","713","714","715","716","717","718",
                                      "719","720","755","756","757","758","759","760","761","762","763","764","765","766","767","768","769","770",
-                                     "771","772","773","774"),orcamento = c("683","695"))
+                                     "771","772","773","774",
+                                     as.character(seq(from = 779,to = 798))))
 connect <- dbPool(drv = RMySQL::MySQL(), dbname = kpass$dbname, host = kpass$host,username = kpass$username,password = kpass$password,idleTimeout = 3600000)
 conn <- poolCheckout(connect)
 date_dbi <- dbWithTransaction(conn, {dbGetQuery(conn, "SELECT updated_on FROM issues ORDER BY updated_on DESC LIMIT 1")})
@@ -80,7 +81,7 @@ issues$Situacao_Prazo <- ifelse(is.na(issues$due_date),"Sem_Data",
                          ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) >  as.numeric(substr(issues$start_date,1,4)),"Em_atraso",
                          ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date < Sys.Date(),"Em_atraso",
                          ifelse(issues$Situacao_Corrigida == "Nao_Iniciada" & as.numeric(substr(Sys.Date(),1,4)) <= as.numeric(substr(issues$start_date,1,4)) & issues$due_date >= Sys.Date() & issues$start_date <= Sys.Date(),"Em_atraso","Sem_Definicao")))))))))
-issues$Ano <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("20"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "20",text = issues$name_project)),unlist(gregexpr(pattern = "20",text = issues$name_project))+3)),"")
+issues$Ano <- str_extract(string = issues$name_project, pattern = "\\d+\\.\\d|\\d+")
 issues$Unidade <- ifelse(issues$project_id %in% unique(issues[grep(pattern = c("[(]"),x = issues$name_project),]$project_id),as.character(substr(issues$name_project,unlist(gregexpr(pattern = "[(]",text = issues$name_project))+1,unlist(gregexpr(pattern = "[)]",text = issues$name_project))-1)),"")
 issues$Setor_Sigla <- ifelse(is.na(issues$Setor)|issues$Setor == "","Nao_Informado",as.character(substr(x = issues$Setor,start = as.numeric(gregexpr(pattern = "[(]",issues$Setor))+1,stop = as.numeric(gregexpr(pattern = "[)]",issues$Setor))-1)))
 issues$due_date <- as.Date(issues$due_date)
@@ -295,26 +296,26 @@ ui <-
                 selectInput(
                   inputId = "year0",
                   label = "Ano:",
-                  choices = c("2017","2018","2019"),
-                  selected = "2019")),
+                  choices = unique(sgi$Ano),
+                  selected = "2019.2")),
               column(
                 width = 12,
                 tags$p(tags$h4(strong("PERSPECTIVAS"))),br())),
             column(
               width = 12,
               column(width = 3, htmlOutput("box.per.res")),
-              column(width = 3, htmlOutput("box.per.soc")),
               column(width = 3, htmlOutput("box.per.pro")),
-              column(width = 3, htmlOutput("box.per.pes"))),
+              column(width = 3, htmlOutput("box.per.pes")),
+              column(width = 3, htmlOutput("box.per.soc"))),
             column(
               width = 12,
               column(width = 12,br(),tags$p(tags$h4(strong("OBJETIVOS ESTRATÉGICOS"))),br())),
             column(
               width = 12,
-              uiOutput("box.obj.res"), uiOutput("box.obj.soc")),
+              uiOutput("box.obj.res"), uiOutput("box.obj.pro")),
             column(
               width = 12,
-              uiOutput("box.obj.pro"), uiOutput("box.obj.pes"))
+              uiOutput("box.obj.pes"), uiOutput("box.obj.soc"))
           )
         ),
         tabItem(
@@ -327,17 +328,17 @@ ui <-
                 selectInput(
                   inputId = "year1",
                   label = "Ano:",
-                  choices = c("2017","2018", "2019"),
-                  selected = "2019")),
+                  choices = unique(sgi$Ano),
+                  selected = "2019.2")),
               column(
                 width = 6,
-                selectInput(
-                  inputId = "input0menu1sub1",
-                  label = "Perspectiva do BSC",
-                  choices = sort(unique(sgi[sgi$Tipo == "Perspectiva", ]$Titulo)),
-                  selected = sort(unique(sgi[sgi$Tipo == "Perspectiva", ]$Titulo)),
-                  multiple = TRUE,
-                  width = "100%")),
+                uiOutput("menuperspectiva")),
+                # selectInput(
+                #   inputId = "input0menu1sub1",
+                #   label = "Perspectiva do BSC",
+                #   choices = "",
+                #   multiple = TRUE,
+                #   width = "100%")),
               column(
                 width = 4,
                 selectInput(
@@ -359,12 +360,14 @@ ui <-
               br(),
               column(
                 width = 12,
-                selectInput(
-                  inputId = 'input3menu1sub1',
-                  label = "Indicador",
-                  choices = c(sort(unique(sgi$Titulo[sgi$Tipo == "Indicador" & sgi$Situacao %in% c("Nova","Em andamento","Resolvida")]))),
-                  selected = "",
-                  width = "100%"))),
+                uiOutput("menuindicador")
+                # selectInput(
+                #   inputId = 'input3menu1sub1',
+                #   label = "Indicador",
+                #   choices = c(sort(unique(sgi$Titulo[sgi$Tipo == "Indicador" & sgi$Situacao %in% c("Nova","Em andamento","Resolvida")]))),
+                #   selected = "",
+                #   width = "100%"))
+              )),
             column(width = 12,br()),
             column(
               width = 12,
@@ -390,8 +393,8 @@ ui <-
               selectInput(
                 inputId = "year2",
                 label = "Ano:",
-                choices = c("2017","2018","2019"),
-                selected = "2019")),
+                choices = unique(sgi$Ano),
+                selected = "2019.2")),
             box(
               width = 3,
               title = "Por Situação",
@@ -428,8 +431,8 @@ ui <-
                 selectInput(
                   inputId = "year3",
                   label = "Ano:",
-                  choices = c("2017", "2018","2019"),
-                  selected = "2019")),
+                  choices = unique(sgi$Ano),
+                  selected = "2019.2")),
               column(
                 width = 4,
                 selectInput(
@@ -504,8 +507,8 @@ ui <-
                    width = "100%",
                    inputId = 'input0menu2sub2',
                    label = "Ano",
-                   choices = c("2016", "2017", "2018"),
-                   selected = "2017")),
+                   choices = unique(sgi$Ano),
+                   selected = "2019.2")),
                column(
                  width = 2,
                  selectInput(
@@ -704,17 +707,26 @@ ui <-
 # SHINY SERVER ----------------------------------------------------------------------------------------------------
 server <-
   function(input, output, session) {
+    output$menuperspectiva <- renderUI({
+      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Perspectiva",]$Titulo))
+      selectInput(inputId = "input0menu1sub1", label = "Perspectiva", choices = choices, selected = choices, multiple = TRUE, width = "100%")
+    })
+    output$menuindicador <- renderUI({
+      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Indicador" & sgi$Situacao %in% c("Nova","Em andamento","Resolvida"),]$Titulo))
+      selectInput(inputId = "input3menu1sub1", label = "Indicador", choices = choices, selected = choices[1], width = "100%")
+    })
     dbboxind <- reactive({
       bd <- sgi %>%
         filter(Tipo == "Perspectiva",Ano == as.character(input$year0),Id_Projeto %in% project_app$planejamento) %>%
-        group_by("Perspectiva" = substr(Titulo,3,nchar(Titulo)),Tipo = "Percentual","Valor" = Perc_Terminado) %>%
+        group_by("Perspectiva" = str_trim(substr(Titulo,3,nchar(Titulo))),Tipo = "Percentual","Valor" = Perc_Terminado) %>%
         summarise()
       bd1 <- sgi %>%
         filter(Tipo == "Acao",Tipo1 == "Indicador",Ano == as.character(input$year0),Id_Projeto %in% project_app$planejamento) %>%
-        group_by("Perspectiva" = substr(Titulo4,3,nchar(Titulo4)),Tipo = "Quantidade") %>%
+        group_by("Perspectiva" = str_trim(substr(Titulo4,3,nchar(Titulo4))),Tipo = "Quantidade") %>%
         summarise(Valor = n())
-      bd <- bind_rows(bd,bd1)
+      bd <- bind_rows(bd, bd1)
       bd <- spread(data = bd,key = Tipo,value = Valor,fill ="")
+      bd
       })
     output$box.per.res <- renderInfoBox({
       db <- dbboxind()[dbboxind()$Perspectiva == "Resultados", ]
@@ -724,15 +736,6 @@ server <-
                   description= paste("% de execução das", db$Quantidade,"ações"),
                   color = "red",
                   icon = "fa fa-line-chart")
-    })
-    output$box.per.soc <- renderInfoBox({
-      db <- dbboxind()[dbboxind()$Perspectiva == "Sociedade", ]
-      taskitembox(title = db$Perspectiva,
-                  subtitle = paste0(db$Percentual,"%"),
-                  value = db$Percentual,
-                  description= paste("% de execução das", db$Quantidade,"ações"),
-                  color = "yellow",
-                  icon = "fa fa-users")
     })
     output$box.per.pro <- renderInfoBox({
       db <- dbboxind()[dbboxind()$Perspectiva == "Processos Internos", ]
@@ -752,6 +755,22 @@ server <-
                   color = "blue",
                   icon = "fa fa-wrench")
     })
+    observe({
+      if(any(dbboxind()$Perspectiva == "Sociedade")){
+        output$box.per.soc <- renderInfoBox({
+          db <- dbboxind()[dbboxind()$Perspectiva == "Sociedade", ]
+          taskitembox(title = db$Perspectiva,
+                      subtitle = paste0(db$Percentual,"%"),
+                      value = db$Percentual,
+                      description= paste("% de execução das", db$Quantidade,"ações"),
+                      color = "yellow",
+                      icon = "fa fa-users")
+        })
+      } else {
+        output$box.per.soc <- renderText("")
+      }
+    })
+    
     dbboxobj <- reactive({
       bd <- sgi %>%
         filter(Tipo == "Objetivo",Ano == as.character(input$year0),Id_Projeto %in% project_app$planejamento) %>%
@@ -760,44 +779,81 @@ server <-
     })
     output$box.obj.res <- renderUI({
       type_color <- "danger"
-      box(width = 6,title = strong("P1 RESULTADOS"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
+      if(input$year0 %in% c("2017", "2018", "2019")){
+        box <- box(
+          width = 6,
+          title = strong("RESULTADOS"),
+          solidHeader = FALSE,
+          status = type_color,
+          collapsible = TRUE,
+          collapsed = FALSE,
           barprogress(title = dbboxobj()$Objetivo[1],type = type_color,
                       value = dbboxobj()$Percentual[1]),
           barprogress(title = dbboxobj()$Objetivo[2],type = type_color,
                       value = dbboxobj()$Percentual[2]),
           barprogress(title = dbboxobj()$Objetivo[3],type = type_color,
                       value = dbboxobj()$Percentual[3]))
-    })
-    output$box.obj.soc <- renderUI({
-      type_color <- "warning"
-      box(width = 6,title = strong("P2 SOCIEDADE"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
-          barprogress(title = dbboxobj()$Objetivo[4],type = type_color,
-                      value = dbboxobj()$Percentual[4]))
+      } else {
+        box <- box(
+          width = 6,
+          title = strong("RESULTADOS"),
+          solidHeader = FALSE,
+          status = type_color,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          barprogress(title = dbboxobj()$Objetivo[1],type = type_color,
+                      value = dbboxobj()$Percentual[1]),
+          barprogress(title = dbboxobj()$Objetivo[2],type = type_color,
+                      value = dbboxobj()$Percentual[2]))
+      }
+      box
     })
     output$box.obj.pro <- renderUI({
       type_color <- "success"
-      box(width = 6,title = strong("P3 PROCESSOS INTERNOS"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
+      if(input$year0 %in% c("2017", "2018", "2019")){
+      box <- box(
+        width = 6,
+        title = strong("PROCESSOS INTERNOS"),
+        solidHeader = FALSE,
+        status = type_color,
+        collapsible = TRUE,
+        collapsed = FALSE,
+        barprogress(title = dbboxobj()$Objetivo[5],type = type_color,
+                    value = dbboxobj()$Percentual[5]),
+        barprogress(title = dbboxobj()$Objetivo[6],type = type_color,
+                    value = dbboxobj()$Percentual[6]),
+        barprogress(title = dbboxobj()$Objetivo[7],type = type_color,
+                    value = dbboxobj()$Percentual[7]),
+        barprogress(title = dbboxobj()$Objetivo[8],type = type_color,
+                    value = dbboxobj()$Percentual[8]),
+        barprogress(title = dbboxobj()$Objetivo[9],type = type_color,
+                    value = dbboxobj()$Percentual[9]),
+        barprogress(title = dbboxobj()$Objetivo[10],type = type_color,
+                    value = dbboxobj()$Percentual[10]),
+        barprogress(title = dbboxobj()$Objetivo[11],type = type_color,
+                    value = dbboxobj()$Percentual[11]),
+        barprogress(title = dbboxobj()$Objetivo[12],type = type_color,
+                    value = dbboxobj()$Percentual[12]))
+      } else {
+        box <- box(
+          width = 6,
+          title = strong("PROCESSOS INTERNOS"),
+          solidHeader = FALSE,
+          status = type_color,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          barprogress(title = dbboxobj()$Objetivo[3],type = type_color,
+                      value = dbboxobj()$Percentual[3]),
+          barprogress(title = dbboxobj()$Objetivo[4],type = type_color,
+                      value = dbboxobj()$Percentual[4]),
           barprogress(title = dbboxobj()$Objetivo[5],type = type_color,
-                      value = dbboxobj()$Percentual[5]),
-          barprogress(title = dbboxobj()$Objetivo[6],type = type_color,
-                      value = dbboxobj()$Percentual[6]),
-          barprogress(title = dbboxobj()$Objetivo[7],type = type_color,
-                      value = dbboxobj()$Percentual[7]),
-          barprogress(title = dbboxobj()$Objetivo[8],type = type_color,
-                      value = dbboxobj()$Percentual[8]),
-          barprogress(title = dbboxobj()$Objetivo[9],type = type_color,
-                      value = dbboxobj()$Percentual[9]),
-          barprogress(title = dbboxobj()$Objetivo[10],type = type_color,
-                      value = dbboxobj()$Percentual[10]),
-          barprogress(title = dbboxobj()$Objetivo[11],type = type_color,
-                      value = dbboxobj()$Percentual[11]),
-          barprogress(title = dbboxobj()$Objetivo[12],type = type_color,
-                      value = dbboxobj()$Percentual[12])
-      )
+                      value = dbboxobj()$Percentual[5]))
+      }
     })
     output$box.obj.pes <- renderUI({
       type_color <- "primary"
-      box(width = 6,title = strong("P4 PESSOAS E TECNOLOGIA"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
+      if(input$year0 %in% c("2017", "2018", "2019")){
+      box <- box(width = 6,title = strong("PESSOAS E TECNOLOGIA"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
           barprogress(title = dbboxobj()$Objetivo[13],type = type_color,
                       value = dbboxobj()$Percentual[13]),
           barprogress(title = dbboxobj()$Objetivo[14],type = type_color,
@@ -806,6 +862,27 @@ server <-
                       value = dbboxobj()$Percentual[15]),
           barprogress(title = dbboxobj()$Objetivo[16],type = type_color,
                       value = dbboxobj()$Percentual[16]))
+      } else {
+        box <- box(width = 6,title = strong("PESSOAS E TECNOLOGIA"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
+                   barprogress(title = dbboxobj()$Objetivo[6],type = type_color,
+                               value = dbboxobj()$Percentual[6]),
+                   barprogress(title = dbboxobj()$Objetivo[7],type = type_color,
+                               value = dbboxobj()$Percentual[7]),
+                   barprogress(title = dbboxobj()$Objetivo[8],type = type_color,
+                               value = dbboxobj()$Percentual[8]))
+      }
+      box
+    })
+    
+    observe({
+      type_color <- "warning"
+      if(input$year0 %in% c("2017", "2018", "2019")){
+        output$box.obj.soc <- renderUI({box <- box(width = 6,title = strong("SOCIEDADE"),solidHeader = FALSE,status = type_color,collapsible = TRUE,collapsed = FALSE,
+                   barprogress(title = dbboxobj()$Objetivo[4],type = type_color,
+                               value = dbboxobj()$Percentual[4]))})
+      } else {
+        output$box.obj.soc <- renderText("")
+      }
     })
     # PLANEJAMENTO - INDICADORES
     dbindger <- reactive({
