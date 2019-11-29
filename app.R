@@ -707,14 +707,6 @@ ui <-
 # SHINY SERVER ----------------------------------------------------------------------------------------------------
 server <-
   function(input, output, session) {
-    output$menuperspectiva <- renderUI({
-      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Perspectiva",]$Titulo))
-      selectInput(inputId = "input0menu1sub1", label = "Perspectiva", choices = choices, selected = choices, multiple = TRUE, width = "100%")
-    })
-    output$menuindicador <- renderUI({
-      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Indicador" & sgi$Situacao %in% c("Nova","Em andamento","Resolvida"),]$Titulo))
-      selectInput(inputId = "input3menu1sub1", label = "Indicador", choices = choices, selected = choices[1], width = "100%")
-    })
     dbboxind <- reactive({
       bd <- sgi %>%
         filter(Tipo == "Perspectiva",Ano == as.character(input$year0),Id_Projeto %in% project_app$planejamento) %>%
@@ -885,6 +877,14 @@ server <-
       }
     })
     # PLANEJAMENTO - INDICADORES
+    output$menuperspectiva <- renderUI({
+      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Perspectiva",]$Titulo))
+      selectInput(inputId = "input0menu1sub1", label = "Perspectiva", choices = choices, selected = choices, multiple = TRUE, width = "100%")
+    })
+    output$menuindicador <- renderUI({
+      choices <- sort(unique(sgi[sgi$Ano == input$year1 & sgi$Tipo == "Indicador" & sgi$Situacao %in% c("Nova","Em andamento","Resolvida"),]$Titulo))
+      selectInput(inputId = "input3menu1sub1", label = "Indicador", choices = choices, selected = choices[1], width = "100%")
+    })
     dbindger <- reactive({
       if(input$input1menu1sub1 == "Quantidade"){
         bd <- sgi %>%
