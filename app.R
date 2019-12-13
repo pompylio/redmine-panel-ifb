@@ -718,6 +718,9 @@ server <-
         summarise(Valor = n())
       bd <- bind_rows(bd, bd1)
       bd <- spread(data = bd,key = Tipo,value = Valor,fill ="")
+      if(any(is.na(bd$Perspectiva))){
+        bd <- bd[!is.na(bd$Perspectiva),]
+      }
       bd
       })
     output$box.per.res <- renderInfoBox({
